@@ -1,0 +1,32 @@
+{
+  "name": "@opengolfapi/mcp-server",
+  "version": "1.0.0",
+  "description": "Free MCP server for AI agents to query the OpenGolfAPI dataset",
+  "type": "module",
+  "bin": {
+    "opengolfapi-mcp": "dist/index.js"
+  },
+  "files": ["dist", "README.md", "LICENSE"],
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/opengolfapi/mcp-server.git"
+  },
+  "keywords": ["mcp", "golf", "opengolfapi", "ai"],
+  "author": "OpenGolfAPI",
+  "license": "MIT",
+  "bugs": { "url": "https://github.com/opengolfapi/mcp-server/issues" },
+  "homepage": "https://opengolfapi.org",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "@supabase/supabase-js": "^2.0.0",
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  }
+}

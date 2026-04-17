@@ -13,7 +13,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod';
 import { createClient } from '@supabase/supabase-js';
 
-const SUPABASE_URL = process.env.SUPABASE_URL ?? 'https://ysbzokxixabqrdogdvqc.supabase.co';
+const SUPABASE_URL = process.env.SUPABASE_URL ?? 'https://zeskurqlsgvmahzmmsmd.supabase.co';
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
 
 if (!SUPABASE_KEY) {

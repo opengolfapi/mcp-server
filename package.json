@@ -1,7 +1,7 @@
 {
   "name": "@opengolfapi/mcp-server",
-  "version": "1.0.0",
-  "description": "Free MCP server for AI agents to query the OpenGolfAPI dataset",
+  "version": "2.0.0",
+  "description": "Open MCP server for AI agents to query the OpenGolfAPI dataset",
   "type": "module",
   "bin": {
     "opengolfapi-mcp": "dist/index.js"

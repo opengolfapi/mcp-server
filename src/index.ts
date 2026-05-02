@@ -13,6 +13,9 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod';
 import { createClient } from '@supabase/supabase-js';
 
+// Package version — used in User-Agent so the API can identify MCP traffic.
+const PKG_VERSION = '2.2.0';
+
 const SUPABASE_URL = process.env.SUPABASE_URL ?? 'https://zeskurqlsgvmahzmmsmd.supabase.co';
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
 
@@ -21,12 +24,49 @@ if (!SUPABASE_KEY) {
   process.exit(1);
 }
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+// Optional API key for higher rate limits. Anonymous (no key) still works
+// at 1k req/day per IP. With a free key from courses.opengolfapi.org/api-keys,
+// the limit jumps to 10k+/day depending on donor tier.
+const OPENGOLFAPI_KEY = process.env.OPENGOLFAPI_KEY;
+
+const userAgent = `opengolfapi-mcp-server/${PKG_VERSION}`;
+
+// Wrap fetch so every outbound request carries our User-Agent. For requests
+// to api.opengolfapi.org specifically, also attach Authorization: Bearer
+// when OPENGOLFAPI_KEY is set so the API can apply the donor-tier rate limit.
+//
+// We deliberately do NOT attach the OpenGolfAPI bearer to Supabase URLs —
+// PostgREST treats `Authorization` as the user JWT for RLS and would reject
+// an `ogapi_...` token. Supabase's own apikey/anon headers are managed by
+// the SDK and left untouched.
+const customFetch: typeof fetch = (input, init) => {
+  const url = typeof input === 'string'
+    ? input
+    : input instanceof URL
+      ? input.href
+      : input.url;
+
+  const headers = new Headers(init?.headers);
+  headers.set('User-Agent', userAgent);
+
+  if (OPENGOLFAPI_KEY && url.includes('api.opengolfapi.org')) {
+    headers.set('Authorization', `Bearer ${OPENGOLFAPI_KEY}`);
+  }
+
+  return fetch(input, { ...init, headers });
+};
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
+  global: {
+    headers: { 'User-Agent': userAgent },
+    fetch: customFetch,
+  },
+});
 
 const server = new McpServer({
   name: 'opengolfapi',
-  version: '2.0.0',
-  description: 'Open database of 17,000+ US golf courses. ODbL licensed. opengolfapi.org',
+  version: PKG_VERSION,
+  description: 'Open database of 14,708 US golf courses. ODbL licensed. opengolfapi.org',
 });
 
 // ── Tool: search_courses ──

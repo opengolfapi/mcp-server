@@ -12,12 +12,25 @@
  * Install: npx @opengolfapi/mcp-server
  */
 
+// Sentry must initialize BEFORE any other imports that could throw, so any
+// load-time error in transitive deps still gets captured. The init is a no-op
+// when SENTRY_DSN is unset, so end users who run the server via npx never
+// send telemetry unless they set the env var themselves.
+import * as Sentry from '@sentry/node';
+if (process.env.SENTRY_DSN) {
+  Sentry.init({
+    dsn: process.env.SENTRY_DSN,
+    tracesSampleRate: 0.1,
+    release: `opengolfapi-mcp-server@${process.env.npm_package_version || 'unknown'}`,
+  });
+}
+
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
 
 // Package version — used in User-Agent so the API can identify MCP traffic.
-const PKG_VERSION = '2.2.0';
+const PKG_VERSION = '2.2.2';
 
 const API_BASE = process.env.OPENGOLFAPI_BASE ?? 'https://api.opengolfapi.org';
 
@@ -121,62 +134,68 @@ server.tool(
     limit: z.number().optional().default(10).describe('Max results'),
   },
   async ({ lat, lng, radius_mi, query: q, state, limit }) => {
-    const max = limit ?? 10;
-    const r = radius_mi ?? 25;
+    try {
+      const max = limit ?? 10;
+      const r = radius_mi ?? 25;
 
-    // Build a server-side query. The public search supports `q`, `state`,
-    // and `limit`. Geo (lat/lng/radius_mi) is filtered client-side after
-    // fetch — see https://github.com/opengolfapi/api/issues for tracking
-    // native geo search support.
-    const params = new URLSearchParams();
-    if (q) params.set('q', q);
-    if (state) params.set('state', state.toUpperCase());
+      // Build a server-side query. The public search supports `q`, `state`,
+      // and `limit`. Geo (lat/lng/radius_mi) is filtered client-side after
+      // fetch — see https://github.com/opengolfapi/api/issues for tracking
+      // native geo search support.
+      const params = new URLSearchParams();
+      if (q) params.set('q', q);
+      if (state) params.set('state', state.toUpperCase());
 
-    let pool: ApiCourse[] = [];
-    let geoFilterApplied = false;
+      let pool: ApiCourse[] = [];
+      let geoFilterApplied = false;
 
-    if (lat !== undefined && lng !== undefined) {
-      // Geo filtering: pull a wider net so the local bbox filter has data
-      // to chew on. If a state is given, prefer the state listing
-      // (returns up to 100 per page) since it's higher recall than search.
-      params.set('limit', '100');
-      if (state && !q) {
-        const data = await apiGet<StateResponse>(`/v1/courses/state/${state.toUpperCase()}`);
-        pool = data.courses ?? [];
+      if (lat !== undefined && lng !== undefined) {
+        // Geo filtering: pull a wider net so the local bbox filter has data
+        // to chew on. If a state is given, prefer the state listing
+        // (returns up to 100 per page) since it's higher recall than search.
+        params.set('limit', '100');
+        if (state && !q) {
+          const data = await apiGet<StateResponse>(`/v1/courses/state/${state.toUpperCase()}`);
+          pool = data.courses ?? [];
+        } else {
+          const data = await apiGet<SearchResponse>(`/v1/courses/search?${params.toString()}`);
+          pool = data.courses ?? [];
+        }
+
+        const latDelta = r / 69.0;
+        const lngDelta = r / (69.0 * Math.cos(lat * Math.PI / 180));
+        pool = pool.filter(c => {
+          if (c.latitude == null || c.longitude == null) return false;
+          return c.latitude >= lat - latDelta
+            && c.latitude <= lat + latDelta
+            && c.longitude >= lng - lngDelta
+            && c.longitude <= lng + lngDelta;
+        });
+        geoFilterApplied = true;
       } else {
+        params.set('limit', String(max));
         const data = await apiGet<SearchResponse>(`/v1/courses/search?${params.toString()}`);
         pool = data.courses ?? [];
       }
 
-      const latDelta = r / 69.0;
-      const lngDelta = r / (69.0 * Math.cos(lat * Math.PI / 180));
-      pool = pool.filter(c => {
-        if (c.latitude == null || c.longitude == null) return false;
-        return c.latitude >= lat - latDelta
-          && c.latitude <= lat + latDelta
-          && c.longitude >= lng - lngDelta
-          && c.longitude <= lng + lngDelta;
-      });
-      geoFilterApplied = true;
-    } else {
-      params.set('limit', String(max));
-      const data = await apiGet<SearchResponse>(`/v1/courses/search?${params.toString()}`);
-      pool = data.courses ?? [];
+      const courses = pool.slice(0, max).map(summarizeCourse);
+
+      return {
+        content: [{
+          type: 'text' as const,
+          text: JSON.stringify({
+            courses,
+            total: courses.length,
+            ...(geoFilterApplied ? { geo_filter: { lat, lng, radius_mi: r } } : {}),
+            source: SOURCE,
+          }, null, 2),
+        }],
+      };
+    } catch (err) {
+      Sentry.captureException(err, { tags: { tool: 'search_courses' } });
+      const msg = err instanceof Error ? err.message : String(err);
+      return { content: [{ type: 'text' as const, text: `Error: ${msg}` }] };
     }
-
-    const courses = pool.slice(0, max).map(summarizeCourse);
-
-    return {
-      content: [{
-        type: 'text' as const,
-        text: JSON.stringify({
-          courses,
-          total: courses.length,
-          ...(geoFilterApplied ? { geo_filter: { lat, lng, radius_mi: r } } : {}),
-          source: SOURCE,
-        }, null, 2),
-      }],
-    };
   }
 );
 
@@ -196,7 +215,8 @@ server.tool(
         apiGet<ApiCourse>(`/v1/courses/${course_id}`),
         apiGet<HolesResponse>(`/v1/courses/${course_id}/holes`),
       ]);
-    } catch {
+    } catch (err) {
+      Sentry.captureException(err, { tags: { tool: 'get_course' } });
       return { content: [{ type: 'text' as const, text: 'Course not found' }] };
     }
 
@@ -247,6 +267,7 @@ server.tool(
         }],
       };
     } catch (err) {
+      Sentry.captureException(err, { tags: { tool: 'get_tees' } });
       const msg = err instanceof Error ? err.message : String(err);
       return { content: [{ type: 'text' as const, text: `Error: ${msg}` }] };
     }
@@ -271,6 +292,7 @@ server.tool(
         }],
       };
     } catch (err) {
+      Sentry.captureException(err, { tags: { tool: 'get_climate' } });
       const msg = err instanceof Error ? err.message : String(err);
       return { content: [{ type: 'text' as const, text: `Error: ${msg}` }] };
     }
@@ -300,6 +322,7 @@ server.tool(
         }],
       };
     } catch (err) {
+      Sentry.captureException(err, { tags: { tool: 'get_nearby' } });
       const msg = err instanceof Error ? err.message : String(err);
       return { content: [{ type: 'text' as const, text: `Error: ${msg}` }] };
     }
@@ -349,4 +372,7 @@ async function main() {
   await server.connect(transport);
 }
 
-main().catch(console.error);
+main().catch((err) => {
+  Sentry.captureException(err);
+  console.error(err);
+});

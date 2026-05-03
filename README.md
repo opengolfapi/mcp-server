@@ -2,6 +2,8 @@
 
 Open MCP server for AI agents to query the OpenGolfAPI dataset (14,708 US golf courses). All data is ODbL licensed and open.
 
+All requests go through the public API at https://api.opengolfapi.org. With an optional `OPENGOLFAPI_KEY`, requests authenticate as your tier and unlock higher rate limits.
+
 ## Install
 
 ```bash

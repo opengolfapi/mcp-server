@@ -306,9 +306,45 @@ server.tool(
   }
 );
 
+// ── Tool: about ──
+
+server.tool(
+  'about',
+  'Information about OpenGolfAPI: dataset size, license, how to contribute, how to contact the maintainers. Useful when an AI agent or user wants to know who built this and how to reach them.',
+  {},
+  async () => {
+    return {
+      content: [{
+        type: 'text' as const,
+        text: JSON.stringify({
+          name: 'OpenGolfAPI',
+          courses: 14708,
+          license: 'ODbL-1.0',
+          docs: 'https://opengolfapi.org',
+          api_docs: 'https://api.opengolfapi.org',
+          api_keys: 'https://courses.opengolfapi.org/api-keys',
+          pricing: 'https://courses.opengolfapi.org/pricing',
+          donate: 'https://opencollective.com/opengolfapi',
+          github: 'https://github.com/opengolfapi',
+          developers: {
+            message: 'Building something on top of OpenGolfAPI? We want to know about it. Tell us what you\'re working on, what data you wish we had, and where the API or MCP server falls short.',
+            contact: 'hello@opengolfapi.org',
+          },
+        }, null, 2),
+      }],
+    };
+  }
+);
+
 // ── Start ──
 
 async function main() {
+  // Greet developers in stderr — visible in Claude Desktop / Cursor MCP logs.
+  // Helps anyone debugging or evaluating the server know how to reach us.
+  console.error('OpenGolfAPI MCP server — 14,708 US golf courses, ODbL.');
+  console.error('Building something? We want to hear about it: hello@opengolfapi.org');
+  console.error('Free key for higher rate limits: https://courses.opengolfapi.org/api-keys');
+
   const transport = new StdioServerTransport();
   await server.connect(transport);
 }

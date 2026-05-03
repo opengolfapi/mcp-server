@@ -5,24 +5,21 @@
  * Tools: search_courses, get_course, get_tees, get_climate, get_nearby
  * All data is open — ODbL licensed.
  *
+ * All tools call the public REST API at https://api.opengolfapi.org.
+ * No direct database access. With an optional OPENGOLFAPI_KEY env var,
+ * requests authenticate as your tier and unlock higher rate limits.
+ *
  * Install: npx @opengolfapi/mcp-server
  */
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
-import { createClient } from '@supabase/supabase-js';
 
 // Package version — used in User-Agent so the API can identify MCP traffic.
 const PKG_VERSION = '2.2.0';
 
-const SUPABASE_URL = process.env.SUPABASE_URL ?? 'https://zeskurqlsgvmahzmmsmd.supabase.co';
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
-
-if (!SUPABASE_KEY) {
-  console.error('SUPABASE_SERVICE_ROLE_KEY required');
-  process.exit(1);
-}
+const API_BASE = process.env.OPENGOLFAPI_BASE ?? 'https://api.opengolfapi.org';
 
 // Optional API key for higher rate limits. Anonymous (no key) still works
 // at 1k req/day per IP. With a free key from courses.opengolfapi.org/api-keys,
@@ -31,42 +28,83 @@ const OPENGOLFAPI_KEY = process.env.OPENGOLFAPI_KEY;
 
 const userAgent = `opengolfapi-mcp-server/${PKG_VERSION}`;
 
-// Wrap fetch so every outbound request carries our User-Agent. For requests
-// to api.opengolfapi.org specifically, also attach Authorization: Bearer
-// when OPENGOLFAPI_KEY is set so the API can apply the donor-tier rate limit.
-//
-// We deliberately do NOT attach the OpenGolfAPI bearer to Supabase URLs —
-// PostgREST treats `Authorization` as the user JWT for RLS and would reject
-// an `ogapi_...` token. Supabase's own apikey/anon headers are managed by
-// the SDK and left untouched.
-const customFetch: typeof fetch = (input, init) => {
-  const url = typeof input === 'string'
-    ? input
-    : input instanceof URL
-      ? input.href
-      : input.url;
+const SOURCE = 'OpenGolfAPI (opengolfapi.org) — ODbL licensed';
 
+// Wrap fetch so every outbound request carries our User-Agent and, when
+// OPENGOLFAPI_KEY is set, an Authorization: Bearer header so the API can
+// apply the donor-tier rate limit.
+const customFetch: typeof fetch = (input, init) => {
   const headers = new Headers(init?.headers);
   headers.set('User-Agent', userAgent);
+  headers.set('Accept', 'application/json');
 
-  if (OPENGOLFAPI_KEY && url.includes('api.opengolfapi.org')) {
+  if (OPENGOLFAPI_KEY) {
     headers.set('Authorization', `Bearer ${OPENGOLFAPI_KEY}`);
   }
 
   return fetch(input, { ...init, headers });
 };
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
-  global: {
-    headers: { 'User-Agent': userAgent },
-    fetch: customFetch,
-  },
-});
+async function apiGet<T>(path: string): Promise<T> {
+  const url = `${API_BASE}${path}`;
+  const res = await customFetch(url);
+  if (!res.ok) {
+    throw new Error(`API ${res.status} ${res.statusText} for ${path}`);
+  }
+  return res.json() as Promise<T>;
+}
+
+// Shape the public API returns for a course record. We only narrow the
+// fields the MCP tools surface; everything else is passed through opaquely.
+type ApiCourse = {
+  id: string;
+  course_name?: string | null;
+  city?: string | null;
+  state?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  course_type?: string | null;
+  par_total?: number | null;
+  total_yardage?: number | null;
+  phone?: string | null;
+  website?: string | null;
+  architect?: string | null;
+  year_built?: number | null;
+  address?: string | null;
+  postal_code?: string | null;
+  holes_count?: number | null;
+};
+
+type SearchResponse = { count?: number; courses: ApiCourse[] };
+type StateResponse = { state: string; count?: number; courses: ApiCourse[] };
+type TeesResponse = { tees: unknown[] };
+type HolesResponse = { holes: Array<{ hole_number: number; par: number | null; handicap_index: number | null }> };
+type NearbyResponse = { nearby: unknown[] };
+
+function summarizeCourse(c: ApiCourse) {
+  return {
+    id: c.id,
+    name: c.course_name,
+    city: c.city,
+    state: c.state,
+    lat: c.latitude,
+    lng: c.longitude,
+    type: c.course_type,
+    par: c.par_total,
+    total_yardage: c.total_yardage,
+    phone: c.phone,
+    website: c.website,
+    architect: c.architect,
+    year_built: c.year_built,
+    address: c.address,
+    postal_code: c.postal_code,
+  };
+}
 
 const server = new McpServer({
   name: 'opengolfapi',
   version: PKG_VERSION,
-  description: 'Open database of 14,708 US golf courses. ODbL licensed. opengolfapi.org',
+  description: 'Open database of US golf courses. ODbL licensed. opengolfapi.org',
 });
 
 // ── Tool: search_courses ──
@@ -83,39 +121,50 @@ server.tool(
     limit: z.number().optional().default(10).describe('Max results'),
   },
   async ({ lat, lng, radius_mi, query: q, state, limit }) => {
-    let query = supabase.from('golf_courses').select('*');
+    const max = limit ?? 10;
+    const r = radius_mi ?? 25;
 
-    if (q) query = query.ilike('course_name', `%${q}%`);
-    if (state) query = query.eq('state', state.toUpperCase());
+    // Build a server-side query. The public search supports `q`, `state`,
+    // and `limit`. Geo (lat/lng/radius_mi) is filtered client-side after
+    // fetch — see https://github.com/opengolfapi/api/issues for tracking
+    // native geo search support.
+    const params = new URLSearchParams();
+    if (q) params.set('q', q);
+    if (state) params.set('state', state.toUpperCase());
+
+    let pool: ApiCourse[] = [];
+    let geoFilterApplied = false;
 
     if (lat !== undefined && lng !== undefined) {
-      const r = radius_mi ?? 25;
+      // Geo filtering: pull a wider net so the local bbox filter has data
+      // to chew on. If a state is given, prefer the state listing
+      // (returns up to 100 per page) since it's higher recall than search.
+      params.set('limit', '100');
+      if (state && !q) {
+        const data = await apiGet<StateResponse>(`/v1/courses/state/${state.toUpperCase()}`);
+        pool = data.courses ?? [];
+      } else {
+        const data = await apiGet<SearchResponse>(`/v1/courses/search?${params.toString()}`);
+        pool = data.courses ?? [];
+      }
+
       const latDelta = r / 69.0;
       const lngDelta = r / (69.0 * Math.cos(lat * Math.PI / 180));
-      query = query
-        .gte('latitude', lat - latDelta).lte('latitude', lat + latDelta)
-        .gte('longitude', lng - lngDelta).lte('longitude', lng + lngDelta);
+      pool = pool.filter(c => {
+        if (c.latitude == null || c.longitude == null) return false;
+        return c.latitude >= lat - latDelta
+          && c.latitude <= lat + latDelta
+          && c.longitude >= lng - lngDelta
+          && c.longitude <= lng + lngDelta;
+      });
+      geoFilterApplied = true;
+    } else {
+      params.set('limit', String(max));
+      const data = await apiGet<SearchResponse>(`/v1/courses/search?${params.toString()}`);
+      pool = data.courses ?? [];
     }
 
-    const { data } = await query.limit(limit ?? 10);
-
-    const courses = (data ?? []).map((c: Record<string, unknown>) => ({
-      id: c.id,
-      name: c.course_name,
-      city: c.city,
-      state: c.state,
-      lat: c.latitude,
-      lng: c.longitude,
-      type: c.course_type,
-      par: c.par_total,
-      total_yardage: c.total_yardage,
-      phone: c.phone,
-      website: c.website,
-      architect: c.architect,
-      year_built: c.year_built,
-      address: c.address,
-      postal_code: c.postal_code,
-    }));
+    const courses = pool.slice(0, max).map(summarizeCourse);
 
     return {
       content: [{
@@ -123,7 +172,8 @@ server.tool(
         text: JSON.stringify({
           courses,
           total: courses.length,
-          source: 'OpenGolfAPI (opengolfapi.org) — ODbL licensed',
+          ...(geoFilterApplied ? { geo_filter: { lat, lng, radius_mi: r } } : {}),
+          source: SOURCE,
         }, null, 2),
       }],
     };
@@ -139,44 +189,34 @@ server.tool(
     course_id: z.string().describe('Course UUID from search results'),
   },
   async ({ course_id }) => {
-    const [courseRes, holesRes] = await Promise.all([
-      supabase.from('golf_courses').select('*').eq('id', course_id).single(),
-      supabase.from('golf_course_holes').select('hole_number, par, handicap_index').eq('course_id', course_id).not('par', 'is', null).order('hole_number'),
-    ]);
-
-    if (courseRes.error || !courseRes.data) {
+    let c: ApiCourse;
+    let holes: HolesResponse['holes'];
+    try {
+      [c, { holes }] = await Promise.all([
+        apiGet<ApiCourse>(`/v1/courses/${course_id}`),
+        apiGet<HolesResponse>(`/v1/courses/${course_id}/holes`),
+      ]);
+    } catch {
       return { content: [{ type: 'text' as const, text: 'Course not found' }] };
     }
 
-    const c = courseRes.data as Record<string, unknown>;
-    const scorecard = (holesRes.data ?? []).map(h => ({
-      hole: h.hole_number,
-      par: h.par,
-      handicap_index: h.handicap_index,
-    }));
+    const scorecard = (holes ?? [])
+      .filter(h => h.par != null)
+      .sort((a, b) => a.hole_number - b.hole_number)
+      .map(h => ({
+        hole: h.hole_number,
+        par: h.par,
+        handicap_index: h.handicap_index,
+      }));
 
     return {
       content: [{
         type: 'text' as const,
         text: JSON.stringify({
-          id: c.id,
-          name: c.course_name,
-          city: c.city,
-          state: c.state,
-          lat: c.latitude,
-          lng: c.longitude,
-          type: c.course_type,
-          par: c.par_total,
-          total_yardage: c.total_yardage,
-          holes: scorecard.length,
-          phone: c.phone,
-          website: c.website,
-          architect: c.architect,
-          year_built: c.year_built,
-          address: c.address,
-          postal_code: c.postal_code,
+          ...summarizeCourse(c),
+          holes: scorecard.length || c.holes_count,
           scorecard,
-          source: 'OpenGolfAPI (opengolfapi.org) — ODbL licensed',
+          source: SOURCE,
         }, null, 2),
       }],
     };
@@ -192,22 +232,24 @@ server.tool(
     course_id: z.string().describe('Course UUID'),
   },
   async ({ course_id }) => {
-    const { data, error } = await supabase
-      .from('golf_course_tees')
-      .select('*')
-      .eq('course_id', course_id)
-      .order('total_yardage', { ascending: false });
-
-    if (error) {
-      return { content: [{ type: 'text' as const, text: `Error: ${error.message}` }] };
+    try {
+      const { tees } = await apiGet<TeesResponse>(`/v1/courses/${course_id}/tees`);
+      // Sort longest-yardage first to match prior behavior.
+      const sorted = [...(tees ?? [])].sort((a, b) => {
+        const ay = (a as { total_yardage?: number | null }).total_yardage ?? -1;
+        const by = (b as { total_yardage?: number | null }).total_yardage ?? -1;
+        return by - ay;
+      });
+      return {
+        content: [{
+          type: 'text' as const,
+          text: JSON.stringify({ tees: sorted, source: SOURCE }, null, 2),
+        }],
+      };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return { content: [{ type: 'text' as const, text: `Error: ${msg}` }] };
     }
-
-    return {
-      content: [{
-        type: 'text' as const,
-        text: JSON.stringify({ tees: data ?? [], source: 'OpenGolfAPI (opengolfapi.org) — ODbL licensed' }, null, 2),
-      }],
-    };
   }
 );
 
@@ -220,22 +262,18 @@ server.tool(
     course_id: z.string().describe('Course UUID'),
   },
   async ({ course_id }) => {
-    const { data, error } = await supabase
-      .from('golf_course_climate')
-      .select('*')
-      .eq('course_id', course_id)
-      .maybeSingle();
-
-    if (error) {
-      return { content: [{ type: 'text' as const, text: `Error: ${error.message}` }] };
+    try {
+      const climate = await apiGet<unknown>(`/v1/courses/${course_id}/climate`);
+      return {
+        content: [{
+          type: 'text' as const,
+          text: JSON.stringify({ climate, source: SOURCE }, null, 2),
+        }],
+      };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return { content: [{ type: 'text' as const, text: `Error: ${msg}` }] };
     }
-
-    return {
-      content: [{
-        type: 'text' as const,
-        text: JSON.stringify({ climate: data, source: 'OpenGolfAPI (opengolfapi.org) — ODbL licensed' }, null, 2),
-      }],
-    };
   }
 );
 
@@ -248,23 +286,23 @@ server.tool(
     course_id: z.string().describe('Course UUID'),
   },
   async ({ course_id }) => {
-    const { data, error } = await supabase
-      .from('golf_course_nearby')
-      .select('*')
-      .eq('course_id', course_id)
-      .order('distance_miles')
-      .limit(20);
-
-    if (error) {
-      return { content: [{ type: 'text' as const, text: `Error: ${error.message}` }] };
+    try {
+      const { nearby } = await apiGet<NearbyResponse>(`/v1/courses/${course_id}/nearby`);
+      const sorted = [...(nearby ?? [])].sort((a, b) => {
+        const ad = (a as { distance_miles?: number | null }).distance_miles ?? Number.POSITIVE_INFINITY;
+        const bd = (b as { distance_miles?: number | null }).distance_miles ?? Number.POSITIVE_INFINITY;
+        return ad - bd;
+      }).slice(0, 20);
+      return {
+        content: [{
+          type: 'text' as const,
+          text: JSON.stringify({ nearby: sorted, source: SOURCE }, null, 2),
+        }],
+      };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return { content: [{ type: 'text' as const, text: `Error: ${msg}` }] };
     }
-
-    return {
-      content: [{
-        type: 'text' as const,
-        text: JSON.stringify({ nearby: data ?? [], source: 'OpenGolfAPI (opengolfapi.org) — ODbL licensed' }, null, 2),
-      }],
-    };
   }
 );
 

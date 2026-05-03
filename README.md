@@ -61,6 +61,30 @@ Donor tiers raise the daily limit further (10k / 50k / 250k / 1M).
 - `get_climate(id)` — monthly climate normals for the course location
 - `get_nearby(id)` — nearby POIs (hotels, restaurants, airports)
 
+## Telemetry
+
+Optional: set `SENTRY_DSN` env var to send errors to your own Sentry instance.
+We do not collect telemetry from end users — this is opt-in for the operator
+running the server.
+
+```json
+{
+  "mcpServers": {
+    "opengolfapi": {
+      "command": "npx",
+      "args": ["@opengolfapi/mcp-server"],
+      "env": {
+        "OPENGOLFAPI_KEY": "ogapi_yourkeyhere",
+        "SENTRY_DSN": "https://<key>@o<org>.ingest.sentry.io/<project>"
+      }
+    }
+  }
+}
+```
+
+When `SENTRY_DSN` is unset the SDK is a complete no-op — nothing is initialized
+and no network calls are made.
+
 ## License
 
 MIT

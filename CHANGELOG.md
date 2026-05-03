@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.2.2 — 2026-05-01
+
+- Optional Sentry error tracking via `@sentry/node`. Set `SENTRY_DSN` env var to forward tool exceptions to your own Sentry instance — no telemetry is collected from end users by default. See README's "Telemetry" section.
+
 ## 2.2.0 — 2026-05-02
 
 **Architectural change:** MCP tools now call the public REST API at api.opengolfapi.org instead of querying Supabase directly. Means optional OPENGOLFAPI_KEY actually authenticates requests, tier rate limits apply, and we can swap database backends without breaking installs.

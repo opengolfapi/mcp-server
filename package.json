@@ -1,6 +1,6 @@
 {
   "name": "@opengolfapi/mcp-server",
-  "version": "2.2.1",
+  "version": "2.2.2",
   "description": "Open MCP server for AI agents to query the OpenGolfAPI dataset (14,708 US golf courses, ODbL)",
   "type": "module",
   "bin": {
@@ -33,6 +33,7 @@
   "homepage": "https://opengolfapi.org",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
+    "@sentry/node": "^10.51.0",
     "zod": "^3.22.0"
   },
   "devDependencies": {

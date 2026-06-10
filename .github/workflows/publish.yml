@@ -1,0 +1,58 @@
+name: Publish
+
+# Publishes @opengolfapi/mcp-server to npm whenever a v* tag is pushed.
+# Future release ritual:
+#   1. Bump version in package.json + src/index.ts PKG_VERSION constant
+#   2. Commit + push to main
+#   3. git tag v<X.Y.Z> && git push --tags
+#   4. This workflow runs → npm publish with sigstore provenance
+#
+# Token: NPM_TOKEN repo secret (granular access token with bypass-2FA,
+# scoped to @opengolfapi/* read+write).
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write   # required for npm provenance (sigstore)
+
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Verify tag matches package.json version
+        run: |
+          TAG=${GITHUB_REF#refs/tags/v}
+          PKG=$(node -p "require('./package.json').version")
+          if [ "$TAG" != "$PKG" ]; then
+            echo "::error::Tag v$TAG does not match package.json $PKG — fix version before tagging."
+            exit 1
+          fi
+          echo "Publishing v$TAG"
+
+      - run: npm ci
+
+      - name: Build + smoke test
+        run: |
+          npm run build
+          npm test
+
+      - name: Publish to npm
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

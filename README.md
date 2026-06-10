@@ -63,9 +63,21 @@ Donor tiers raise the daily limit further (10k / 50k / 250k / 1M).
 
 ## Telemetry
 
-Optional: set `SENTRY_DSN` env var to send errors to your own Sentry instance.
-We do not collect telemetry from end users — this is opt-in for the operator
-running the server.
+This server reports unhandled errors to the OpenGolfAPI Sentry project by default so the maintainers can catch bugs that hit real users. **No request bodies, no API keys, no PII** — only stack traces of exceptions thrown inside the server process. Quotas and sampling live in the Sentry project config; the DSN is an ingest endpoint, not a secret.
+
+To opt out completely:
+
+```
+OPENGOLFAPI_DISABLE_TELEMETRY=1 npx @opengolfapi/mcp-server
+```
+
+To send to your own Sentry project instead (overrides the default DSN):
+
+```
+SENTRY_DSN=https://your-dsn@sentry.io/... npx @opengolfapi/mcp-server
+```
+
+Example MCP config:
 
 ```json
 {
@@ -74,16 +86,12 @@ running the server.
       "command": "npx",
       "args": ["@opengolfapi/mcp-server"],
       "env": {
-        "OPENGOLFAPI_KEY": "ogapi_yourkeyhere",
-        "SENTRY_DSN": "https://<key>@o<org>.ingest.sentry.io/<project>"
+        "OPENGOLFAPI_KEY": "ogapi_yourkeyhere"
       }
     }
   }
 }
 ```
-
-When `SENTRY_DSN` is unset the SDK is a complete no-op — nothing is initialized
-and no network calls are made.
 
 ## License
 

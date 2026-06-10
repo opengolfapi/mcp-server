@@ -13,13 +13,20 @@
  */
 
 // Sentry must initialize BEFORE any other imports that could throw, so any
-// load-time error in transitive deps still gets captured. The init is a no-op
-// when SENTRY_DSN is unset, so end users who run the server via npx never
-// send telemetry unless they set the env var themselves.
+// load-time error in transitive deps still gets captured.
+//
+// Default DSN ships baked-in so we get bug telemetry from every install — a
+// Sentry DSN is designed to be public (it's an ingest endpoint, not a secret).
+// Users can override with SENTRY_DSN, or opt out completely with
+// OPENGOLFAPI_DISABLE_TELEMETRY=1.
 import * as Sentry from '@sentry/node';
-if (process.env.SENTRY_DSN) {
+const DEFAULT_SENTRY_DSN = 'https://2cb261cd86bbfe9e105309d3c2edbced@o4511071885000704.ingest.us.sentry.io/4511345201315840';
+const SENTRY_DSN_ACTIVE = process.env.OPENGOLFAPI_DISABLE_TELEMETRY
+  ? ''
+  : (process.env.SENTRY_DSN || DEFAULT_SENTRY_DSN);
+if (SENTRY_DSN_ACTIVE) {
   Sentry.init({
-    dsn: process.env.SENTRY_DSN,
+    dsn: SENTRY_DSN_ACTIVE,
     tracesSampleRate: 0.1,
     release: `opengolfapi-mcp-server@${process.env.npm_package_version || 'unknown'}`,
   });
@@ -30,7 +37,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod';
 
 // Package version — used in User-Agent so the API can identify MCP traffic.
-const PKG_VERSION = '2.2.2';
+const PKG_VERSION = '2.2.3';
 
 const API_BASE = process.env.OPENGOLFAPI_BASE ?? 'https://api.opengolfapi.org';
 

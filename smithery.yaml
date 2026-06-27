@@ -1,0 +1,24 @@
+# Smithery config — https://smithery.ai/docs/build/project-config
+# Local stdio server, published to npm. Runs via npx. Reads are free with no config;
+# an optional OPENGOLFAPI_KEY (free) enables contributing shots & moments.
+startCommand:
+  type: stdio
+  configSchema:
+    type: object
+    properties:
+      OPENGOLFAPI_KEY:
+        type: string
+        title: OpenGolfAPI API Key
+        description: >-
+          Optional. Free key from https://courses.opengolfapi.org/api-keys —
+          enables the contribute tools (log_shot, submit_moment). All read
+          tools work without it.
+    required: []
+    additionalProperties: false
+  commandFunction: |-
+    (config) => ({
+      command: 'npx',
+      args: ['-y', '@opengolfapi/mcp-server'],
+      env: config.OPENGOLFAPI_KEY ? { OPENGOLFAPI_KEY: config.OPENGOLFAPI_KEY } : {}
+    })
+  exampleConfig: {}

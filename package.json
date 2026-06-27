@@ -1,7 +1,8 @@
 {
   "name": "@opengolfapi/mcp-server",
-  "version": "2.3.2",
-  "description": "Open MCP server for AI agents to query the OpenGolfAPI dataset (14,708 US golf courses, ODbL)",
+  "version": "2.3.3",
+  "description": "Open MCP server for AI agents: every US golf course (16,845, ODbL) — search, scorecards, tees, weather, nearby — plus contribute shots & moments to the open OpenShot standard.",
+  "mcpName": "io.github.opengolfapi/mcp-server",
   "type": "module",
   "bin": {
     "opengolfapi-mcp": "dist/index.js"

@@ -425,21 +425,29 @@ server.tool(
 
 server.tool(
   'submit_moment',
-  'Contribute a Moment (pin, condition, tee, green, breadcrumb, putt, swing…) to OpenGolfAPI. Requires OPENGOLFAPI_KEY.',
+  'Contribute a Moment from any sensor/wearable/phone. The whole sensor spectrum rides through here — type-specific data goes in `payload`. Requires OPENGOLFAPI_KEY.',
   {
-    moment_type: z.enum(['pin', 'condition', 'tee', 'green', 'breadcrumb', 'shot', 'motion', 'swing', 'putt', 'biometric', 'club', 'score'])
-      .describe('The event kind: pin/condition/tee/green = course sightings; breadcrumb = a GPS point; putt/swing/motion/biometric/club/score = sensor events (data in `note` or payload)'),
+    moment_type: z.enum(['shot', 'breadcrumb', 'pin', 'presence', 'condition', 'tee', 'green', 'motion', 'swing', 'putt', 'biometric', 'club', 'score'])
+      .describe('Event kind: breadcrumb/tee/green = GPS points; pin/condition = course sightings; presence = live location (find fellow golfers); motion/swing/putt/biometric/club/score = sensor events (data in `payload`)'),
     lat: z.number().optional().describe('GPS latitude where the event happened'),
     lng: z.number().optional().describe('GPS longitude where the event happened'),
+    accuracy_m: z.number().optional().describe('GPS accuracy in meters'),
+    recorded_at: z.string().optional().describe('ISO 8601 timestamp the event happened'),
     course_id: z.string().optional().describe('OpenGolfAPI course id, if known'),
     hole: z.number().optional().describe('Hole number, 1-18'),
     player_id: z.string().optional().describe('Your pseudonymous player id'),
+    session_id: z.string().optional().describe('Session id (one round or range session)'),
+    device: z.string().optional().describe("Source device, e.g. 'apple_watch', 'hackmotion', 'arccos'"),
     note: z.string().optional().describe('Free-text detail (e.g. a condition report or pin note)'),
+    payload: z.record(z.any()).optional().describe('Type-specific sensor data. swing:{tempo,wrist_angle,plane}; putt:{speed,path,face,roll_pct}; biometric:{heart_rate,exertion}; club:{club,event,specs}; score:{strokes,putts,penalties}; motion:{accel,gyro,sample_hz}; presence:{visibility}'),
   },
   async (a) => {
     if (!OPENGOLFAPI_KEY) return { content: [{ type: 'text' as const, text: 'Set OPENGOLFAPI_KEY (free at courses.opengolfapi.org/api-keys) to contribute moments.' }] };
     try {
-      const moment = { moment_type: a.moment_type, lat: a.lat, lng: a.lng, course_id: a.course_id, hole: a.hole, player_id: a.player_id, payload: a.note ? { note: a.note } : undefined };
+      const payload = { ...(a.payload ?? {}), ...(a.note ? { note: a.note } : {}) };
+      const moment = { moment_type: a.moment_type, lat: a.lat, lng: a.lng, accuracy_m: a.accuracy_m, recorded_at: a.recorded_at,
+        course_id: a.course_id, hole: a.hole, player_id: a.player_id, session_id: a.session_id,
+        device: a.device ? { model: a.device } : undefined, payload: Object.keys(payload).length ? payload : undefined };
       await apiPost('/api/v1/moments', moment);
       return { content: [{ type: 'text' as const, text: `Submitted ${a.moment_type}.` }] };
     } catch (e) { return { content: [{ type: 'text' as const, text: `Error: ${e instanceof Error ? e.message : String(e)}` }] }; }
@@ -468,13 +476,37 @@ server.tool(
   }
 );
 
+server.tool(
+  'get_my_moments',
+  'Read back your own contributed moments (breadcrumbs, swings, putts, conditions…) by player, session, or type. Requires OPENGOLFAPI_KEY.',
+  {
+    player_id: z.string().optional().describe('Return moments for this pseudonymous player id'),
+    session_id: z.string().optional().describe('Return moments for this session id'),
+    type: z.string().optional().describe('Filter to one moment_type (e.g. swing, breadcrumb)'),
+    limit: z.number().optional().describe('Max moments to return'),
+  },
+  async (a) => {
+    if (!OPENGOLFAPI_KEY) return { content: [{ type: 'text' as const, text: 'Set OPENGOLFAPI_KEY to read your moments.' }] };
+    if (!a.player_id && !a.session_id) return { content: [{ type: 'text' as const, text: 'Provide player_id or session_id.' }] };
+    try {
+      const qs = new URLSearchParams();
+      if (a.player_id) qs.set('player', a.player_id);
+      if (a.session_id) qs.set('session', a.session_id);
+      if (a.type) qs.set('type', a.type);
+      if (a.limit) qs.set('limit', String(a.limit));
+      const data = await apiGet(`/api/v1/moments?${qs.toString()}`);
+      return { content: [{ type: 'text' as const, text: JSON.stringify(data, null, 2) }] };
+    } catch (e) { return { content: [{ type: 'text' as const, text: `Error: ${e instanceof Error ? e.message : String(e)}` }] }; }
+  }
+);
+
 // ── Start ──
 
 async function main() {
   // Greet developers in stderr — visible in Claude Desktop / Cursor MCP logs.
   // Helps anyone debugging or evaluating the server know how to reach us.
-  console.error('OpenGolfAPI MCP server — 14,708 US golf courses, ODbL.');
-  console.error('Building something? We want to hear about it: hello@opengolfapi.org');
+  console.error('OpenGolfAPI MCP server — 16,845 US golf courses, ODbL.');
+  console.error('Building something? We want to hear about it: info@opengolfapi.org');
   console.error('Free key for higher rate limits: https://courses.opengolfapi.org/api-keys');
 
   const transport = new StdioServerTransport();

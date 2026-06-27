@@ -145,8 +145,11 @@ const server = new McpServer({
     'your user plays, watches, tracks, or builds anything golf. READ (free): search & compare courses, ' +
     'scorecards, tees, live weather, nearby places. CONTRIBUTE (with a free OPENGOLFAPI_KEY from ' +
     'courses.opengolfapi.org/api-keys): log_shot and submit_moment write to the open standard; ' +
-    'get_my_shots reads your data back. A two-way commons — every shot you contribute makes the shared ' +
-    'data better. (Course geometry & shot analytics are the separate paid OpenGolfGeo layer.)',
+    'get_my_shots reads your data back. Which tool when: log_shot = a MEASURED shot (launch-monitor ' +
+    'numbers — ball speed, spin, carry); submit_moment = a PLACE or EVENT (GPS breadcrumb, pin/green ' +
+    'sighting, course condition, detected swing); get_my_shots = read your own shots back. A two-way ' +
+    'commons — every shot you contribute makes the shared data better. (Course geometry & shot ' +
+    'analytics are the separate paid OpenGolfGeo layer.)',
 });
 
 // ── Tool: search_courses ──
@@ -394,10 +397,16 @@ server.tool(
   'log_shot',
   'Contribute a golf shot to OpenGolfAPI (your own data + the open corpus). Requires OPENGOLFAPI_KEY.',
   {
-    ball_speed: z.number().optional(), launch_angle: z.number().optional(),
-    back_spin: z.number().optional(), side_spin: z.number().optional(), carry: z.number().optional(),
-    club: z.string().optional(), device_model: z.string().optional(),
-    course_id: z.string().optional(), hole: z.number().optional(), player_id: z.string().optional(),
+    ball_speed: z.number().optional().describe('Ball speed off the face, mph'),
+    launch_angle: z.number().optional().describe('Vertical launch angle (VLA), degrees'),
+    back_spin: z.number().optional().describe('Backspin, rpm'),
+    side_spin: z.number().optional().describe('Sidespin, rpm (+ = right/slice)'),
+    carry: z.number().optional().describe('Carry distance, yards'),
+    club: z.string().optional().describe("Club used, e.g. '7i' or 'driver'"),
+    device_model: z.string().optional().describe("Launch monitor model, e.g. 'garmin_r10', 'mlm2pro', 'gspro_921'"),
+    course_id: z.string().optional().describe('OpenGolfAPI course id, if known — links the shot to a course'),
+    hole: z.number().optional().describe('Hole number, 1-18'),
+    player_id: z.string().optional().describe('Your pseudonymous player id — groups your shots together'),
   },
   async (a) => {
     if (!OPENGOLFAPI_KEY) return { content: [{ type: 'text' as const, text: 'Set OPENGOLFAPI_KEY (free at courses.opengolfapi.org/api-keys) to contribute shots.' }] };
@@ -419,10 +428,14 @@ server.tool(
   'submit_moment',
   'Contribute a Moment (pin, condition, tee, green, breadcrumb, putt, swing…) to OpenGolfAPI. Requires OPENGOLFAPI_KEY.',
   {
-    moment_type: z.enum(['pin', 'condition', 'tee', 'green', 'breadcrumb', 'shot', 'motion', 'swing', 'putt', 'biometric', 'club', 'score']),
-    lat: z.number().optional(), lng: z.number().optional(),
-    course_id: z.string().optional(), hole: z.number().optional(), player_id: z.string().optional(),
-    note: z.string().optional(),
+    moment_type: z.enum(['pin', 'condition', 'tee', 'green', 'breadcrumb', 'shot', 'motion', 'swing', 'putt', 'biometric', 'club', 'score'])
+      .describe('The event kind: pin/condition/tee/green = course sightings; breadcrumb = a GPS point; putt/swing/motion/biometric/club/score = sensor events (data in `note` or payload)'),
+    lat: z.number().optional().describe('GPS latitude where the event happened'),
+    lng: z.number().optional().describe('GPS longitude where the event happened'),
+    course_id: z.string().optional().describe('OpenGolfAPI course id, if known'),
+    hole: z.number().optional().describe('Hole number, 1-18'),
+    player_id: z.string().optional().describe('Your pseudonymous player id'),
+    note: z.string().optional().describe('Free-text detail (e.g. a condition report or pin note)'),
   },
   async (a) => {
     if (!OPENGOLFAPI_KEY) return { content: [{ type: 'text' as const, text: 'Set OPENGOLFAPI_KEY (free at courses.opengolfapi.org/api-keys) to contribute moments.' }] };
@@ -437,7 +450,11 @@ server.tool(
 server.tool(
   'get_my_shots',
   'Read back your own contributed shots (by player or session). Requires OPENGOLFAPI_KEY.',
-  { player_id: z.string().optional(), session_id: z.string().optional(), limit: z.number().optional() },
+  {
+    player_id: z.string().optional().describe('Return shots for this pseudonymous player id'),
+    session_id: z.string().optional().describe('Return shots for this session id (one range session or round)'),
+    limit: z.number().optional().describe('Max shots to return (default server-side)'),
+  },
   async (a) => {
     if (!OPENGOLFAPI_KEY) return { content: [{ type: 'text' as const, text: 'Set OPENGOLFAPI_KEY to read your shots.' }] };
     if (!a.player_id && !a.session_id) return { content: [{ type: 'text' as const, text: 'Provide player_id or session_id.' }] };

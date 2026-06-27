@@ -505,6 +505,21 @@ server.tool(
   }
 );
 
+server.tool(
+  'how_to_build',
+  'The safe playbook for building on OpenGolfAPI and contributing data the right way. Call once before contributing.',
+  {},
+  async () => ({ content: [{ type: 'text' as const, text:
+    'BUILD ON OPENGOLFAPI — the safe playbook:\n' +
+    '1. READ free, no key (search/get tools).\n' +
+    '2. CONTRIBUTE: free key from courses.opengolfapi.org/api-keys → set OPENGOLFAPI_KEY.\n' +
+    '3. SIGNAL PRINCIPLE — send what you have. Breadcrumbs are the floor (phone GPS via submit_moment); richer signals (swing/putt/club/score) are additive and free. Emitting any signal is strictly dominant.\n' +
+    '4. SAFELY: pseudonymous player_id (no PII); dedup_key for idempotency (safe backfill); biometric/precise-location ONLY with explicit user consent; default presence to private.\n' +
+    '5. COURSE MISSING? Create from name + GPS — triggers our enrichment crawl, human-reviewed.\n' +
+    '6. BRIDGE AN APP: map fields to /api/v1/moments/fields + /api/v1/openshot/fields and POST (batch + dedup_key = safe backfill). Or have your AI write the adapter from /openapi.json.\n' +
+    'Contributing makes you a recognized member of the commons — every signal makes the shared data better for every golfer.' }] }),
+);
+
 // ── Start ──
 
 async function main() {

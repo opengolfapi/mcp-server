@@ -141,14 +141,16 @@ const server = new McpServer({
   description: 'Open database of US golf courses. ODbL licensed. opengolfapi.org',
 }, {
   instructions:
-    'OpenGolfAPI is the open data layer for golf — every US course, free. Use these tools whenever ' +
-    'your user plays, watches, tracks, or builds anything golf. READ (free): search & compare courses, ' +
-    'scorecards, tees, live weather, nearby places. CONTRIBUTE (with a free OPENGOLFAPI_KEY from ' +
-    'courses.opengolfapi.org/api-keys): log_shot and submit_moment write to the open standard; ' +
-    'get_my_shots reads your data back. Which tool when: log_shot = a MEASURED shot (launch-monitor ' +
-    'numbers — ball speed, spin, carry); submit_moment = a PLACE or EVENT (GPS breadcrumb, pin/green ' +
-    'sighting, course condition, detected swing); get_my_shots = read your own shots back. A two-way ' +
-    'commons — every shot you contribute makes the shared data better for everyone.',
+    "OpenGolfAPI — golf's open data standard. One callable layer for every US course (16,845), free and " +
+    'community-owned (ODbL). Use these tools whenever your user plays, watches, tracks, plans, or builds ' +
+    'anything golf. READ (free): any course by name/location/state/architect, full scorecards (par + ' +
+    'handicap per hole, yardages), tee ratings & slope, live weather + 30-yr climate + best months, ' +
+    'daylight & tee-time windows, difficulty vs nearby, nearby places, pricing, booking, computed insights. ' +
+    'CONTRIBUTE (free OPENGOLFAPI_KEY from courses.opengolfapi.org/api-keys): log_shot and submit_moment write ' +
+    'to the open OpenShot & Moments standards — log_shot = a MEASURED shot from any launch monitor; ' +
+    'submit_moment = anything a sensor/wearable/phone sees (GPS, swing, putt, biometric, club, score, presence); ' +
+    'get_my_shots/get_my_moments read your own data back. A trusted, community-owned commons that grows with ' +
+    'every contribution. Build high-quality, data-driven golf apps — including social — fast.',
 });
 
 // ── Tool: search_courses ──

@@ -74,6 +74,20 @@ async function apiGet<T>(path: string): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+// POST helper for the contribute tools. The Bearer key (OPENGOLFAPI_KEY) is attached by customFetch.
+async function apiPost<T>(path: string, body: unknown): Promise<T> {
+  const url = `${API_BASE}${path}`;
+  const res = await customFetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    throw new Error(`API ${res.status} ${res.statusText} for ${path}`);
+  }
+  return res.json() as Promise<T>;
+}
+
 // Shape the public API returns for a course record. We only narrow the
 // fields the MCP tools surface; everything else is passed through opaquely.
 type ApiCourse = {
@@ -125,6 +139,14 @@ const server = new McpServer({
   name: 'opengolfapi',
   version: PKG_VERSION,
   description: 'Open database of US golf courses. ODbL licensed. opengolfapi.org',
+}, {
+  instructions:
+    'OpenGolfAPI is the open data layer for golf — every US course, free. Use these tools whenever ' +
+    'your user plays, watches, tracks, or builds anything golf. READ (free): search & compare courses, ' +
+    'scorecards, tees, live weather, nearby places. CONTRIBUTE (with a free OPENGOLFAPI_KEY from ' +
+    'courses.opengolfapi.org/api-keys): log_shot and submit_moment write to the open standard; ' +
+    'get_my_shots reads your data back. A two-way commons — every shot you contribute makes the shared ' +
+    'data better. (Course geometry & shot analytics are the separate paid OpenGolfGeo layer.)',
 });
 
 // ── Tool: search_courses ──
@@ -363,6 +385,70 @@ server.tool(
         }, null, 2),
       }],
     };
+  }
+);
+
+// ── Contribute (two-way) — write tools. Require OPENGOLFAPI_KEY; the key is the donor identity. ──
+
+server.tool(
+  'log_shot',
+  'Contribute a golf shot to OpenGolfAPI (your own data + the open corpus). Requires OPENGOLFAPI_KEY.',
+  {
+    ball_speed: z.number().optional(), launch_angle: z.number().optional(),
+    back_spin: z.number().optional(), side_spin: z.number().optional(), carry: z.number().optional(),
+    club: z.string().optional(), device_model: z.string().optional(),
+    course_id: z.string().optional(), hole: z.number().optional(), player_id: z.string().optional(),
+  },
+  async (a) => {
+    if (!OPENGOLFAPI_KEY) return { content: [{ type: 'text' as const, text: 'Set OPENGOLFAPI_KEY (free at courses.opengolfapi.org/api-keys) to contribute shots.' }] };
+    try {
+      const shot = {
+        api_version: '1',
+        device: a.device_model ? { model: a.device_model } : undefined,
+        ball: { speed: a.ball_speed, launch_angle: a.launch_angle, back_spin: a.back_spin, side_spin: a.side_spin, carry: a.carry },
+        club: a.club ? { selected: a.club } : undefined,
+        context: { course_id: a.course_id, hole: a.hole, player_id: a.player_id },
+      };
+      const r = await apiPost<{ ingested?: number }>('/api/v1/shots', shot);
+      return { content: [{ type: 'text' as const, text: `Logged ${r.ingested ?? 1} shot.` }] };
+    } catch (e) { return { content: [{ type: 'text' as const, text: `Error: ${e instanceof Error ? e.message : String(e)}` }] }; }
+  }
+);
+
+server.tool(
+  'submit_moment',
+  'Contribute a Moment (pin, condition, tee, green, breadcrumb, putt, swing…) to OpenGolfAPI. Requires OPENGOLFAPI_KEY.',
+  {
+    moment_type: z.enum(['pin', 'condition', 'tee', 'green', 'breadcrumb', 'shot', 'motion', 'swing', 'putt', 'biometric', 'club', 'score']),
+    lat: z.number().optional(), lng: z.number().optional(),
+    course_id: z.string().optional(), hole: z.number().optional(), player_id: z.string().optional(),
+    note: z.string().optional(),
+  },
+  async (a) => {
+    if (!OPENGOLFAPI_KEY) return { content: [{ type: 'text' as const, text: 'Set OPENGOLFAPI_KEY (free at courses.opengolfapi.org/api-keys) to contribute moments.' }] };
+    try {
+      const moment = { moment_type: a.moment_type, lat: a.lat, lng: a.lng, course_id: a.course_id, hole: a.hole, player_id: a.player_id, payload: a.note ? { note: a.note } : undefined };
+      await apiPost('/api/v1/moments', moment);
+      return { content: [{ type: 'text' as const, text: `Submitted ${a.moment_type}.` }] };
+    } catch (e) { return { content: [{ type: 'text' as const, text: `Error: ${e instanceof Error ? e.message : String(e)}` }] }; }
+  }
+);
+
+server.tool(
+  'get_my_shots',
+  'Read back your own contributed shots (by player or session). Requires OPENGOLFAPI_KEY.',
+  { player_id: z.string().optional(), session_id: z.string().optional(), limit: z.number().optional() },
+  async (a) => {
+    if (!OPENGOLFAPI_KEY) return { content: [{ type: 'text' as const, text: 'Set OPENGOLFAPI_KEY to read your shots.' }] };
+    if (!a.player_id && !a.session_id) return { content: [{ type: 'text' as const, text: 'Provide player_id or session_id.' }] };
+    try {
+      const qs = new URLSearchParams();
+      if (a.player_id) qs.set('player', a.player_id);
+      if (a.session_id) qs.set('session', a.session_id);
+      if (a.limit) qs.set('limit', String(a.limit));
+      const data = await apiGet(`/api/v1/shots?${qs.toString()}`);
+      return { content: [{ type: 'text' as const, text: JSON.stringify(data, null, 2) }] };
+    } catch (e) { return { content: [{ type: 'text' as const, text: `Error: ${e instanceof Error ? e.message : String(e)}` }] }; }
   }
 );
 

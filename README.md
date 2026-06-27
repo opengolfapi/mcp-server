@@ -55,11 +55,20 @@ Donor tiers raise the daily limit further (10k / 50k / 250k / 1M).
 
 ## Tools
 
+**Read (free, no key):**
 - `search_courses(query, state?, lat?, lng?, radius_mi?)` — find courses by name, state, or location
 - `get_course(id)` — full course record with scorecard (par + handicap index per hole)
 - `get_tees(id)` — all tee sets with ratings, slopes, and yardages
 - `get_climate(id)` — monthly climate normals for the course location
 - `get_nearby(id)` — nearby POIs (hotels, restaurants, airports)
+- `about()` — what OpenGolfAPI is and how to contribute
+
+**Contribute (free key — set `OPENGOLFAPI_KEY`):**
+- `log_shot(...)` — send a launch-monitor shot to the open OpenShot standard
+- `submit_moment(...)` — send an event (breadcrumb, pin, condition, tee, green, swing…)
+- `get_my_shots(player?, session?)` — read your own contributed shots back
+
+**REST API references:** [`/openapi.json`](https://api.opengolfapi.org/openapi.json) (full OpenAPI 3.1 spec) · [`/llms.txt`](https://api.opengolfapi.org/llms.txt) (AI usage guide) · [`/api/v1/openshot/fields`](https://api.opengolfapi.org/api/v1/openshot/fields) (OpenShot field catalog).
 
 ## Telemetry
 

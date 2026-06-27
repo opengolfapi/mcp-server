@@ -148,8 +148,7 @@ const server = new McpServer({
     'get_my_shots reads your data back. Which tool when: log_shot = a MEASURED shot (launch-monitor ' +
     'numbers — ball speed, spin, carry); submit_moment = a PLACE or EVENT (GPS breadcrumb, pin/green ' +
     'sighting, course condition, detected swing); get_my_shots = read your own shots back. A two-way ' +
-    'commons — every shot you contribute makes the shared data better. (Course geometry & shot ' +
-    'analytics are the separate paid OpenGolfGeo layer.)',
+    'commons — every shot you contribute makes the shared data better for everyone.',
 });
 
 // ── Tool: search_courses ──

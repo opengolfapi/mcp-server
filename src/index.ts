@@ -90,6 +90,12 @@ async function apiPost<T>(path: string, body: unknown): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+async function apiPatch<T>(path: string, body: unknown): Promise<T> {
+  const res = await customFetch(`${API_BASE}${path}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  if (!res.ok) throw new Error(`API ${res.status} ${res.statusText} for ${path}`);
+  return res.json() as Promise<T>;
+}
+
 // Shape the public API returns for a course record. We only narrow the
 // fields the MCP tools surface; everything else is passed through opaquely.
 type ApiCourse = {
@@ -596,6 +602,68 @@ server.tool(
       const sub = JSON.parse(Buffer.from(tok.id_token.split('.')[1], 'base64url').toString()).sub;
       return { content: [{ type: 'text' as const, text: `Signed in ✓\nplayer_id (sub): ${sub}\naccess_token (send as X-OpenGolf-Token): ${tok.access_token}\nscopes: ${tok.scope} · expires in ${tok.expires_in}s` }] };
     } catch (e) { return { content: [{ type: 'text' as const, text: `Error: ${e instanceof Error ? e.message : String(e)}` }] }; }
+  }
+);
+
+// ── OpenGolf ID — profile, beacon, awards, consent (the OPEN player/identity layer; keyed). ──────────
+server.tool(
+  'get_profile',
+  'Read a player\'s public OpenGolf ID card — display name, avatar, links, home course, golf prefs, bucket list. Apps render it as a player card. Requires OPENGOLFAPI_KEY.',
+  { player_id: z.string().describe('Pseudonymous player id (sub)') },
+  async ({ player_id }) => {
+    try { return { content: [{ type: 'text' as const, text: JSON.stringify(await apiGet(`/api/v1/join/profile/${encodeURIComponent(player_id)}`), null, 2) }] }; }
+    catch (e) { return { content: [{ type: 'text' as const, text: `Error: ${e instanceof Error ? e.message : String(e)}` }] }; }
+  }
+);
+server.tool(
+  'update_profile',
+  'Edit a player\'s OpenGolf ID profile — self-asserted fields (display_name, avatar_url, bio, links, home_course_id, bucket_list, preferred_formats…). Derived facts (handicap/stats) cannot be set here. A claimed player needs their grant. Requires OPENGOLFAPI_KEY.',
+  { player_id: z.string(), display_name: z.string().optional(), avatar_url: z.string().optional(), bio: z.string().optional(), home_course_id: z.string().optional(), bucket_list: z.array(z.string()).optional() },
+  async (a) => {
+    if (!OPENGOLFAPI_KEY) return { content: [{ type: 'text' as const, text: 'Set OPENGOLFAPI_KEY to edit a profile.' }] };
+    try { return { content: [{ type: 'text' as const, text: JSON.stringify(await apiPatch('/api/v1/join/profile', a), null, 2) }] }; }
+    catch (e) { return { content: [{ type: 'text' as const, text: `Error: ${e instanceof Error ? e.message : String(e)}` }] }; }
+  }
+);
+server.tool(
+  'get_awards',
+  'A player\'s OpenAwards — earned trophies (aces/eagles/birdies/broke-X/money/streaks/loyalty, all derived + unfakeable), organizer-granted custom awards, and the course passport (distinct courses played + logos). Requires OPENGOLFAPI_KEY.',
+  { player_id: z.string() },
+  async ({ player_id }) => {
+    if (!OPENGOLFAPI_KEY) return { content: [{ type: 'text' as const, text: 'Set OPENGOLFAPI_KEY to read awards.' }] };
+    try { return { content: [{ type: 'text' as const, text: JSON.stringify(await apiGet(`/api/v1/awards/players/${encodeURIComponent(player_id)}`), null, 2) }] }; }
+    catch (e) { return { content: [{ type: 'text' as const, text: `Error: ${e instanceof Error ? e.message : String(e)}` }] }; }
+  }
+);
+server.tool(
+  'set_beacon',
+  'Broadcast a player\'s consented, EXPIRING presence/availability beacon: mode=present (playing now) | available (looking for a game) | open (discoverable). Scoped (course/region), visibility-tiered, auto-expires. Powers find-my-group / matchmaking. Requires OPENGOLFAPI_KEY.',
+  { player_id: z.string(), mode: z.string().describe('present | available | open'), course_id: z.string().optional(), region: z.string().optional(), note: z.string().optional(), visibility: z.string().optional().describe('public | group | friends'), ttl_seconds: z.number().optional() },
+  async (a) => {
+    if (!OPENGOLFAPI_KEY) return { content: [{ type: 'text' as const, text: 'Set OPENGOLFAPI_KEY to set a beacon.' }] };
+    try { return { content: [{ type: 'text' as const, text: JSON.stringify(await apiPost('/api/v1/join/beacon', a), null, 2) }] }; }
+    catch (e) { return { content: [{ type: 'text' as const, text: `Error: ${e instanceof Error ? e.message : String(e)}` }] }; }
+  }
+);
+server.tool(
+  'find_beacons',
+  'Discover ACTIVE public beacons (players broadcasting presence/availability) — for find-my-group / matchmaking. Filter by course_id, region, mode. Requires OPENGOLFAPI_KEY.',
+  { course_id: z.string().optional(), region: z.string().optional(), mode: z.string().optional() },
+  async (a) => {
+    if (!OPENGOLFAPI_KEY) return { content: [{ type: 'text' as const, text: 'Set OPENGOLFAPI_KEY to discover beacons.' }] };
+    const q = new URLSearchParams(); if (a.course_id) q.set('course_id', a.course_id); if (a.region) q.set('region', a.region); if (a.mode) q.set('mode', a.mode);
+    try { return { content: [{ type: 'text' as const, text: JSON.stringify(await apiGet(`/api/v1/join/beacons${q.toString() ? `?${q}` : ''}`), null, 2) }] }; }
+    catch (e) { return { content: [{ type: 'text' as const, text: `Error: ${e instanceof Error ? e.message : String(e)}` }] }; }
+  }
+);
+server.tool(
+  'record_consent',
+  'Record a player\'s consent grant in the consent ledger (app→OpenGolf; the app is the controller). Body: player_id + scopes[] (e.g. corpus, share_scores, gps). Auditable + revocable. Requires OPENGOLFAPI_KEY.',
+  { player_id: z.string(), scopes: z.array(z.string()).describe('e.g. ["corpus","share_scores"]'), granted_to: z.string().optional(), revoke: z.boolean().optional() },
+  async (a) => {
+    if (!OPENGOLFAPI_KEY) return { content: [{ type: 'text' as const, text: 'Set OPENGOLFAPI_KEY to record consent.' }] };
+    try { return { content: [{ type: 'text' as const, text: JSON.stringify(await apiPost('/api/v1/join/consent', a), null, 2) }] }; }
+    catch (e) { return { content: [{ type: 'text' as const, text: `Error: ${e instanceof Error ? e.message : String(e)}` }] }; }
   }
 );
 

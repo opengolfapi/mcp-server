@@ -48,7 +48,7 @@ Get a free `OPENGOLFAPI_KEY` at https://courses.opengolfapi.org/api-keys. Read t
 ## Tools
 
 <!-- TOOLS:START (auto-generated from src by gen-manifest.mjs — do not edit by hand) -->
-_16 tools:_
+_22 tools:_
 
 - `search_courses` — Search golf courses by name, state, or location. Returns full course info. ODbL licensed data from OpenGolfAPI.
 - `get_course` — Get detailed golf course info including full scorecard with par and handicap index per hole. ODbL licensed.
@@ -65,6 +65,12 @@ _16 tools:_
 - `join_tournament` — Join a player into a tournament/round by redeeming its invite token. The player lands in the shared event = part of the field. Handicap is optional: gross by default (no handicap needed); if the player has one it auto-applies for net. Requires OPENGOLFAPI_KEY.
 - `request_sign_in_code` — Start "Sign in with OpenGolf" for a player: emails them a 6-digit code. No API key needed — the email authenticates them. They read you the code, then call complete_sign_in.
 - `complete_sign_in` — Finish "Sign in with OpenGolf": exchange the player's 6-digit code for their OpenGolf ID access token + portable player_id. Use the returned access_token as the X-OpenGolf-Token header to act AS the player, within whatever scopes you were granted. scopes: space-separated (default "identity").
+- `get_profile` — Read a player's public OpenGolf ID card — display name, avatar, links, home course, golf prefs, bucket list. Apps render it as a player card. Requires OPENGOLFAPI_KEY.
+- `update_profile` — Edit a player's OpenGolf ID profile — self-asserted fields (display_name, avatar_url, bio, links, home_course_id, bucket_list, preferred_formats…). Derived facts (handicap/stats) cannot be set here. A claimed player needs their grant. Requires OPENGOLFAPI_KEY.
+- `get_awards` — A player's OpenAwards — earned trophies (aces/eagles/birdies/broke-X/money/streaks/loyalty, all derived + unfakeable), organizer-granted custom awards, and the course passport (distinct courses played + logos). Requires OPENGOLFAPI_KEY.
+- `set_beacon` — Broadcast a player's consented, EXPIRING presence/availability beacon: mode=present (playing now) | available (looking for a game) | open (discoverable). Scoped (course/region), visibility-tiered, auto-expires. Powers find-my-group / matchmaking. Requires OPENGOLFAPI_KEY.
+- `find_beacons` — Discover ACTIVE public beacons (players broadcasting presence/availability) — for find-my-group / matchmaking. Filter by course_id, region, mode. Requires OPENGOLFAPI_KEY.
+- `record_consent` — Record a player's consent grant in the consent ledger (app→OpenGolf; the app is the controller). Body: player_id + scopes[] (e.g. corpus, share_scores, gps). Auditable + revocable. Requires OPENGOLFAPI_KEY.
 - `how_to_build` — The safe playbook for building on OpenGolfAPI and contributing data the right way. Call once before contributing.
 <!-- TOOLS:END -->
 

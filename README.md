@@ -64,7 +64,7 @@ _16 tools:_
 - `create_tournament_invite` — Create a shareable invite (QR/link) for an INDIVIDUAL tournament or round. Everyone who redeems the same invite joins the SAME event/session = the group, linked. max_uses caps the size (foursome=4). Requires OPENGOLFAPI_KEY.
 - `join_tournament` — Join a player into a tournament/round by redeeming its invite token. The player lands in the shared event = part of the field. Handicap is optional: gross by default (no handicap needed); if the player has one it auto-applies for net. Requires OPENGOLFAPI_KEY.
 - `request_sign_in_code` — Start "Sign in with OpenGolf" for a player: emails them a 6-digit code. No API key needed — the email authenticates them. They read you the code, then call complete_sign_in.
-- `complete_sign_in` — Finish "Sign in with OpenGolf": exchange the player's 6-digit code for their OpenGolf ID access token + portable player_id. Use the returned access_token as the X-OpenGolf-Token header to act AS the player — log scores, run/settle events you organize, grant awards (all scope-gated). scopes: space-separated, e.g. "identity events:settle awards:grant" (default "identity").
+- `complete_sign_in` — Finish "Sign in with OpenGolf": exchange the player's 6-digit code for their OpenGolf ID access token + portable player_id. Use the returned access_token as the X-OpenGolf-Token header to act AS the player, within whatever scopes you were granted. scopes: space-separated (default "identity").
 - `how_to_build` — The safe playbook for building on OpenGolfAPI and contributing data the right way. Call once before contributing.
 <!-- TOOLS:END -->
 

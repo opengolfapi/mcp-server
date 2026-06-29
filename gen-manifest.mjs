@@ -17,6 +17,12 @@ const tools = [...src.matchAll(/server\.tool\(\s*'([a-z_]+)',\s*'((?:[^'\\]|\\.)
   .map((m) => ({ name: m[1], description: m[2].replace(/\\'/g, "'") }));
 if (!tools.length) { console.error('gen-manifest: found 0 tools — aborting (regex drift?)'); process.exit(1); }
 
+// CORE DISCIPLINE: nothing paid/gated/geo is ever public. Fail the build if the public MCP calls a gated
+// path (compute/events/awards/geo/ads/surface/settle/stats). The public MCP is the OPEN standard ONLY.
+const calls = [...src.matchAll(/api(?:Get|Post)[^(]*\(\s*[`'"]([^`'"]+)/g)].map((m) => m[1]);
+const gated = calls.filter((p) => /\/(compute|events|awards|geo|ads|surface)\b|settle|players\/[^/]*\/stats/.test(p));
+if (gated.length) { console.error('gen-manifest: PUBLIC MCP calls GATED paths — paid/gated must NEVER be public:', gated.join(', '), '\nAborting.'); process.exit(1); }
+
 // 1) server.json — keep version in sync (the official MCP registry schema is strict: no `tools` field,
 //    camelCase only). Tools live in the README (below) + are introspected from the package at runtime.
 const sjPath = join(dir, 'server.json');

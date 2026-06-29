@@ -578,7 +578,7 @@ server.tool(
 
 server.tool(
   'complete_sign_in',
-  'Finish "Sign in with OpenGolf": exchange the player\'s 6-digit code for their OpenGolf ID access token + portable player_id. Use the returned access_token as the X-OpenGolf-Token header to act AS the player — log scores, run/settle events you organize, grant awards (all scope-gated). scopes: space-separated, e.g. "identity events:settle awards:grant" (default "identity").',
+  'Finish "Sign in with OpenGolf": exchange the player\'s 6-digit code for their OpenGolf ID access token + portable player_id. Use the returned access_token as the X-OpenGolf-Token header to act AS the player, within whatever scopes you were granted. scopes: space-separated (default "identity").',
   {
     email: z.string(), code: z.string().describe('the 6-digit code from the email'),
     scopes: z.string().optional().describe('space-separated OAuth scopes (default "identity")'),

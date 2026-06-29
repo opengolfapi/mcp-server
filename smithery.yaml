@@ -1,6 +1,5 @@
-# Smithery config — https://smithery.ai/docs/build/project-config
-# Local stdio server, published to npm. Runs via npx. Reads are free with no config;
-# an optional OPENGOLFAPI_KEY (free) enables contributing shots & moments.
+# Smithery registry config — https://smithery.ai
+# Connect the GitHub repo on smithery.ai and it reads this to let users launch the server.
 startCommand:
   type: stdio
   configSchema:
@@ -8,17 +7,14 @@ startCommand:
     properties:
       OPENGOLFAPI_KEY:
         type: string
-        title: OpenGolfAPI API Key
-        description: >-
-          Optional. Free key from https://courses.opengolfapi.org/api-keys —
-          enables the contribute tools (log_shot, submit_moment). All read
-          tools work without it.
+        title: OpenGolf API Key
+        description: Free key (courses.opengolfapi.org/api-keys). Optional — only needed to contribute, sign players in, or run tournaments. All course-read tools work with no key.
     required: []
-    additionalProperties: false
-  commandFunction: |-
+  commandFunction: |
     (config) => ({
       command: 'npx',
       args: ['-y', '@opengolfapi/mcp-server'],
       env: config.OPENGOLFAPI_KEY ? { OPENGOLFAPI_KEY: config.OPENGOLFAPI_KEY } : {}
     })
-  exampleConfig: {}
+  exampleConfig:
+    OPENGOLFAPI_KEY: ogapi_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx

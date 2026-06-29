@@ -505,6 +505,58 @@ server.tool(
   }
 );
 
+// ── Identity & tournaments (OpenJoin) — onboard players & run events. REST-only. Require OPENGOLFAPI_KEY. ──
+server.tool(
+  'sign_in_with_opengolf',
+  'Sign up / sign in a player with their PORTABLE OpenGolf identity — one player_id across every golf app, with handicap + history attached. Ties an email (used only as a hashed claim key, never stored raw) to the player_id and returns a verification token to send the player. Requires OPENGOLFAPI_KEY.',
+  {
+    player_id: z.string().describe('Pseudonymous player id'),
+    email: z.string().describe('Player email — used only as a hashed claim key (never stored raw)'),
+  },
+  async ({ player_id, email }) => {
+    if (!OPENGOLFAPI_KEY) return { content: [{ type: 'text' as const, text: 'Set OPENGOLFAPI_KEY (free at courses.opengolfapi.org/api-keys) to sign players in.' }] };
+    try {
+      const j: any = await apiPost('/api/v1/join/claim', { player_id, email });
+      return { content: [{ type: 'text' as const, text: `Identity claim started for ${player_id}. Send the player this verify token: ${j.verify_token}\nOnce confirmed, their handicap + history follow them across every OpenGolf app.` }] };
+    } catch (e) { return { content: [{ type: 'text' as const, text: `Error: ${e instanceof Error ? e.message : String(e)}` }] }; }
+  }
+);
+
+server.tool(
+  'create_tournament_invite',
+  'Create a shareable invite (QR/link) for an INDIVIDUAL tournament or round. Everyone who redeems the same invite joins the SAME event/session = the group, linked. max_uses caps the size (foursome=4). Requires OPENGOLFAPI_KEY.',
+  {
+    event_id: z.string().optional().describe('Tournament/event id (use this OR session_id)'),
+    session_id: z.string().optional().describe('Round/session id'),
+    max_uses: z.number().optional().describe('Group cap (default 8; foursome=4)'),
+    ttl_seconds: z.number().optional().describe('Lifetime seconds (default 900=15min, max 86400=24h)'),
+  },
+  async ({ event_id, session_id, max_uses, ttl_seconds }) => {
+    if (!OPENGOLFAPI_KEY) return { content: [{ type: 'text' as const, text: 'Set OPENGOLFAPI_KEY (free at courses.opengolfapi.org/api-keys) to create tournament invites.' }] };
+    try {
+      const j: any = await apiPost('/api/v1/join/mint', { event_id, session_id, max_uses, ttl_seconds });
+      return { content: [{ type: 'text' as const, text: `Invite token: ${j.token}\n(up to ${j.max_uses} players, expires ${new Date(j.expires_at * 1000).toISOString()}). Share it as a QR/link; players join with join_tournament.` }] };
+    } catch (e) { return { content: [{ type: 'text' as const, text: `Error: ${e instanceof Error ? e.message : String(e)}` }] }; }
+  }
+);
+
+server.tool(
+  'join_tournament',
+  'Join a player into a tournament/round by redeeming its invite token. The player lands in the shared event = part of the field. Handicap is optional: gross by default (no handicap needed); if the player has one it auto-applies for net. Requires OPENGOLFAPI_KEY.',
+  {
+    token: z.string().describe('Invite token from create_tournament_invite'),
+    player_id: z.string().describe('Pseudonymous player id'),
+    display_name: z.string().optional().describe('Optional display name'),
+  },
+  async ({ token, player_id, display_name }) => {
+    if (!OPENGOLFAPI_KEY) return { content: [{ type: 'text' as const, text: 'Set OPENGOLFAPI_KEY (free at courses.opengolfapi.org/api-keys) to join tournaments.' }] };
+    try {
+      const j: any = await apiPost('/api/v1/join/redeem', { token, player_id, display_name });
+      return { content: [{ type: 'text' as const, text: `${player_id} joined ${j.kind} ${j.joined} — field now ${j.group_size}. (Gross by default; net only if the player has a handicap.)` }] };
+    } catch (e) { return { content: [{ type: 'text' as const, text: `Error: ${e instanceof Error ? e.message : String(e)}` }] }; }
+  }
+);
+
 server.tool(
   'how_to_build',
   'The safe playbook for building on OpenGolfAPI and contributing data the right way. Call once before contributing.',

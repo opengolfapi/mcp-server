@@ -1,27 +1,27 @@
 {
-  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-07-09/server.json",
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.opengolfapi/mcp-server",
-  "description": "Every US golf course for AI agents \u2014 search, scorecards, tees, weather, nearby \u2014 plus contribute shots & moments to the open OpenShot standard. ODbL/CC0 open data.",
+  "description": "Golf for AI agents — every US course free, plus open contribution, identity & tournaments.",
+  "version": "2.5.2",
   "repository": {
     "url": "https://github.com/opengolfapi/mcp-server",
     "source": "github"
   },
-  "version": "2.4.0",
-  "websiteUrl": "https://opengolfapi.org",
+  "websiteUrl": "https://opengolfapi.org/connect",
   "packages": [
     {
       "registryType": "npm",
-      "registryBaseUrl": "https://registry.npmjs.org",
       "identifier": "@opengolfapi/mcp-server",
-      "version": "2.4.0",
+      "version": "2.5.2",
       "transport": {
         "type": "stdio"
       },
       "environmentVariables": [
         {
           "name": "OPENGOLFAPI_KEY",
-          "description": "Optional free key (courses.opengolfapi.org/api-keys) \u2014 enables contributing shots & moments. Read tools work without it.",
+          "description": "Free key (courses.opengolfapi.org/api-keys). Optional — only for contributing/identity.",
           "isRequired": false,
+          "format": "string",
           "isSecret": true
         }
       ]

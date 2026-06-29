@@ -1,7 +1,7 @@
 {
   "name": "@opengolfapi/mcp-server",
-  "version": "2.4.0",
-  "description": "Open MCP server for AI agents: every US golf course (16,845, ODbL) — search, scorecards, tees, weather, nearby — plus contribute shots & moments to the open OpenShot standard.",
+  "version": "2.5.2",
+  "description": "Golf for AI agents — every US course free, plus open contribution (OpenShot/Moments), portable identity & tournaments. The open data layer for golf.",
   "mcpName": "io.github.opengolfapi/mcp-server",
   "type": "module",
   "bin": {
@@ -10,11 +10,12 @@
   "files": [
     "dist",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "server.json"
   ],
   "scripts": {
     "build": "tsc",
-    "prepublishOnly": "npm test",
+    "prepublishOnly": "npm run build && node gen-manifest.mjs",
     "test": "npm run build && vitest run"
   },
   "repository": {

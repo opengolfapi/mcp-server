@@ -48,7 +48,7 @@ Get a free `OPENGOLFAPI_KEY` at https://courses.opengolfapi.org/api-keys. Read t
 ## Tools
 
 <!-- TOOLS:START (auto-generated from src by gen-manifest.mjs — do not edit by hand) -->
-_14 tools:_
+_16 tools:_
 
 - `search_courses` — Search golf courses by name, state, or location. Returns full course info. ODbL licensed data from OpenGolfAPI.
 - `get_course` — Get detailed golf course info including full scorecard with par and handicap index per hole. ODbL licensed.
@@ -63,6 +63,8 @@ _14 tools:_
 - `sign_in_with_opengolf` — Sign up / sign in a player with their PORTABLE OpenGolf identity — one player_id across every golf app, with handicap + history attached. Ties an email (used only as a hashed claim key, never stored raw) to the player_id and returns a verification token to send the player. Requires OPENGOLFAPI_KEY.
 - `create_tournament_invite` — Create a shareable invite (QR/link) for an INDIVIDUAL tournament or round. Everyone who redeems the same invite joins the SAME event/session = the group, linked. max_uses caps the size (foursome=4). Requires OPENGOLFAPI_KEY.
 - `join_tournament` — Join a player into a tournament/round by redeeming its invite token. The player lands in the shared event = part of the field. Handicap is optional: gross by default (no handicap needed); if the player has one it auto-applies for net. Requires OPENGOLFAPI_KEY.
+- `request_sign_in_code` — Start "Sign in with OpenGolf" for a player: emails them a 6-digit code. No API key needed — the email authenticates them. They read you the code, then call complete_sign_in.
+- `complete_sign_in` — Finish "Sign in with OpenGolf": exchange the player's 6-digit code for their OpenGolf ID access token + portable player_id. Use the returned access_token as the X-OpenGolf-Token header to act AS the player — log scores, run/settle events you organize, grant awards (all scope-gated). scopes: space-separated, e.g. "identity events:settle awards:grant" (default "identity").
 - `how_to_build` — The safe playbook for building on OpenGolfAPI and contributing data the right way. Call once before contributing.
 <!-- TOOLS:END -->
 

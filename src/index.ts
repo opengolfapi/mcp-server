@@ -35,6 +35,8 @@ if (SENTRY_DSN_ACTIVE) {
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
+import { randomBytes, createHash } from 'node:crypto';
+const pkceChallenge = (verifier: string) => createHash('sha256').update(verifier).digest('base64url');
 
 // Package version — used in User-Agent so the API can identify MCP traffic.
 const PKG_VERSION = '2.2.3';
@@ -553,6 +555,46 @@ server.tool(
     try {
       const j: any = await apiPost('/api/v1/join/redeem', { token, player_id, display_name });
       return { content: [{ type: 'text' as const, text: `${player_id} joined ${j.kind} ${j.joined} — field now ${j.group_size}. (Gross by default; net only if the player has a handicap.)` }] };
+    } catch (e) { return { content: [{ type: 'text' as const, text: `Error: ${e instanceof Error ? e.message : String(e)}` }] }; }
+  }
+);
+
+// ── Sign in with OpenGolf ID (OIDC, headless) — the player's email authenticates them; the agent gets a
+//    scoped access_token to act as them. No API key needed for these (the OIDC flow is keyless). ──────────
+server.tool(
+  'request_sign_in_code',
+  'Start "Sign in with OpenGolf" for a player: emails them a 6-digit code. No API key needed — the email authenticates them. They read you the code, then call complete_sign_in.',
+  {
+    email: z.string().describe("the player's email"),
+    client_id: z.string().optional().describe('your app/agent name (default: mcp-client)'),
+  },
+  async ({ email, client_id }) => {
+    try {
+      const r: any = await apiPost('/oauth/start', { email, client_id: client_id || 'mcp-client' });
+      return { content: [{ type: 'text' as const, text: r.sent ? 'Code emailed. Ask the player for the 6-digit code, then call complete_sign_in.' : (r.dev_otp ? `Dev code: ${r.dev_otp}` : 'Email delivery not configured.') }] };
+    } catch (e) { return { content: [{ type: 'text' as const, text: `Error: ${e instanceof Error ? e.message : String(e)}` }] }; }
+  }
+);
+
+server.tool(
+  'complete_sign_in',
+  'Finish "Sign in with OpenGolf": exchange the player\'s 6-digit code for their OpenGolf ID access token + portable player_id. Use the returned access_token as the X-OpenGolf-Token header to act AS the player — log scores, run/settle events you organize, grant awards (all scope-gated). scopes: space-separated, e.g. "identity events:settle awards:grant" (default "identity").',
+  {
+    email: z.string(), code: z.string().describe('the 6-digit code from the email'),
+    scopes: z.string().optional().describe('space-separated OAuth scopes (default "identity")'),
+    client_id: z.string().optional(),
+  },
+  async ({ email, code, scopes, client_id }) => {
+    try {
+      const verifier = randomBytes(32).toString('base64url');
+      const cid = client_id || 'mcp-client', redirect = 'https://mcp.opengolfapi.org/callback';
+      const cr: any = await apiPost('/oauth/code', { email, otp: code, client_id: cid, redirect_uri: redirect, scope: scopes || 'identity', code_challenge: pkceChallenge(verifier) });
+      const authcode = cr.redirect ? new URL(cr.redirect).searchParams.get('code') : null;
+      if (!authcode) return { content: [{ type: 'text' as const, text: `Sign-in failed: ${cr.error || 'invalid or expired code'}` }] };
+      const tok: any = await apiPost('/oauth/token', { grant_type: 'authorization_code', code: authcode, redirect_uri: redirect, client_id: cid, code_verifier: verifier });
+      if (!tok.id_token) return { content: [{ type: 'text' as const, text: `Token exchange failed: ${tok.error || ''}` }] };
+      const sub = JSON.parse(Buffer.from(tok.id_token.split('.')[1], 'base64url').toString()).sub;
+      return { content: [{ type: 'text' as const, text: `Signed in ✓\nplayer_id (sub): ${sub}\naccess_token (send as X-OpenGolf-Token): ${tok.access_token}\nscopes: ${tok.scope} · expires in ${tok.expires_in}s` }] };
     } catch (e) { return { content: [{ type: 'text' as const, text: `Error: ${e instanceof Error ? e.message : String(e)}` }] }; }
   }
 );

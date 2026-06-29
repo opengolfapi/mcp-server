@@ -48,7 +48,7 @@ Get a free `OPENGOLFAPI_KEY` at https://courses.opengolfapi.org/api-keys. Read t
 ## Tools
 
 <!-- TOOLS:START (auto-generated from src by gen-manifest.mjs — do not edit by hand) -->
-_22 tools:_
+_27 tools:_
 
 - `search_courses` — Search golf courses by name, state, or location. Returns full course info. ODbL licensed data from OpenGolfAPI.
 - `get_course` — Get detailed golf course info including full scorecard with par and handicap index per hole. ODbL licensed.
@@ -65,6 +65,11 @@ _22 tools:_
 - `join_tournament` — Join a player into a tournament/round by redeeming its invite token. The player lands in the shared event = part of the field. Handicap is optional: gross by default (no handicap needed); if the player has one it auto-applies for net. Requires OPENGOLFAPI_KEY.
 - `request_sign_in_code` — Start "Sign in with OpenGolf" for a player: emails them a 6-digit code. No API key needed — the email authenticates them. They read you the code, then call complete_sign_in.
 - `complete_sign_in` — Finish "Sign in with OpenGolf": exchange the player's 6-digit code for their OpenGolf ID access token + portable player_id. Use the returned access_token as the X-OpenGolf-Token header to act AS the player, within whatever scopes you were granted. scopes: space-separated (default "identity").
+- `list_game_formats` — List every OpenMatch scoring format (stroke, stableford, match_play, skins, scramble, best_ball, nassau, ctp, longest_drive, greenies, wolf, …) and the free/gated line. GROSS scoring is free + keyless; net/handicap, settlement, strokes-gained & tournament scale are gated. No key needed.
+- `score_round` — Score a round in any format — GROSS, FREE, no key. players: [{player_id, holes:{"1":4,...}}] for stroke formats, or entries:[{player_id,hole,value}] for shot formats (ctp/longest_drive/greenies). holes: [{hole,par,stroke_index?}]. Returns standings. NET/handicap is the gated tier (add a compute key); money-safe settlement lives elsewhere.
+- `create_dev_key` — Sign up to build: mint an API key bound to your OpenGolf ID. Requires an OpenGolf ID access_token (from complete_sign_in) + the SAME email you signed in with. No OpenGolf ID, no key. Returns the key ONCE. Free scope = read + contribute + keyless gross scoring; net/settlement/geometry/game need an entitled key (info@opengolfapi.org).
+- `link_dev_key` — Confirm your OpenGolf ID on an EXISTING (legacy) key — the simple "add my ID" step. Sign in with the email the key was issued under, then call this with that access_token + the api_key. Verifies + keeps the key and its scopes. (We don't revoke legacy keys — they just confirm their ID.)
+- `list_dev_keys` — List the API keys owned by your OpenGolf ID (prefixes only — never the secret). Requires an OpenGolf ID access_token from complete_sign_in.
 - `get_profile` — Read a player's public OpenGolf ID card — display name, avatar, links, home course, golf prefs, bucket list. Apps render it as a player card. Requires OPENGOLFAPI_KEY.
 - `update_profile` — Edit a player's OpenGolf ID profile — self-asserted fields (display_name, avatar_url, bio, links, home_course_id, bucket_list, preferred_formats…). Derived facts (handicap/stats) cannot be set here. A claimed player needs their grant. Requires OPENGOLFAPI_KEY.
 - `get_awards` — A player's OpenAwards — earned trophies (aces/eagles/birdies/broke-X/money/streaks/loyalty, all derived + unfakeable), organizer-granted custom awards, and the course passport (distinct courses played + logos). Requires OPENGOLFAPI_KEY.

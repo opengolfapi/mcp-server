@@ -48,7 +48,7 @@ Get a free `OPENGOLFAPI_KEY` at https://courses.opengolfapi.org/api-keys. Read t
 ## Tools
 
 <!-- TOOLS:START (auto-generated from src by gen-manifest.mjs — do not edit by hand) -->
-_27 tools:_
+_28 tools:_
 
 - `search_courses` — Search golf courses by name, state, or location. Returns full course info. ODbL licensed data from OpenGolfAPI.
 - `get_course` — Get detailed golf course info including full scorecard with par and handicap index per hole. ODbL licensed.
@@ -58,6 +58,7 @@ _27 tools:_
 - `about` — Information about OpenGolfAPI: dataset size, license, how to contribute, how to contact the maintainers. Useful when an AI agent or user wants to know who built this and how to reach them.
 - `log_shot` — Contribute a golf shot to OpenGolfAPI (your own data + the open corpus). Requires OPENGOLFAPI_KEY.
 - `submit_moment` — Contribute a Moment from any sensor/wearable/phone. The whole sensor spectrum rides through here — type-specific data goes in `payload`. Requires OPENGOLFAPI_KEY.
+- `register_webhook` — Register an https URL to receive OpenGolf domain events (e.g. session_settlement, event_settlement) the instant they happen — no polling. Requires OPENGOLFAPI_KEY. Each delivery is HMAC-signed (X-OG-Signature); verify the record content_hash where present. Owner-scoped: you only receive your own events.
 - `get_my_shots` — Read back your own contributed shots (by player or session). Requires OPENGOLFAPI_KEY.
 - `get_my_moments` — Read back your own contributed moments (breadcrumbs, swings, putts, conditions…) by player, session, or type. Requires OPENGOLFAPI_KEY.
 - `sign_in_with_opengolf` — Sign up / sign in a player with their PORTABLE OpenGolf identity — one player_id across every golf app, with handicap + history attached. Ties an email (used only as a hashed claim key, never stored raw) to the player_id and returns a verification token to send the player. Requires OPENGOLFAPI_KEY.

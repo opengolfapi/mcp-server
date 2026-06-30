@@ -39,7 +39,7 @@ import { randomBytes, createHash } from 'node:crypto';
 const pkceChallenge = (verifier: string) => createHash('sha256').update(verifier).digest('base64url');
 
 // Package version — used in User-Agent so the API can identify MCP traffic.
-const PKG_VERSION = '2.9.0';
+const PKG_VERSION = '2.9.1';
 
 const API_BASE = process.env.OPENGOLFAPI_BASE ?? 'https://api.opengolfapi.org';
 
@@ -467,6 +467,22 @@ server.tool(
         device: a.device ? { model: a.device } : undefined, payload: Object.keys(payload).length ? payload : undefined };
       await apiPost('/api/v1/moments', moment);
       return { content: [{ type: 'text' as const, text: `Submitted ${a.moment_type}.` }] };
+    } catch (e) { return { content: [{ type: 'text' as const, text: `Error: ${e instanceof Error ? e.message : String(e)}` }] }; }
+  }
+);
+
+server.tool(
+  'register_webhook',
+  'Register an https URL to receive OpenGolf domain events (e.g. session_settlement, event_settlement) the instant they happen — no polling. Requires OPENGOLFAPI_KEY. Each delivery is HMAC-signed (X-OG-Signature); verify the record content_hash where present. Owner-scoped: you only receive your own events.',
+  {
+    url: z.string().describe('Your https endpoint that will receive POSTed { event, record }'),
+    events: z.array(z.string()).optional().describe("Event types to receive; default ['*'] = all. e.g. ['session_settlement','event_settlement']"),
+  },
+  async (a) => {
+    if (!OPENGOLFAPI_KEY) return { content: [{ type: 'text' as const, text: 'Set OPENGOLFAPI_KEY (free at courses.opengolfapi.org/api-keys) to register webhooks.' }] };
+    try {
+      const r: any = await apiPost('/api/v1/webhooks', { url: a.url, events: a.events });
+      return { content: [{ type: 'text' as const, text: JSON.stringify(r, null, 2) }] };
     } catch (e) { return { content: [{ type: 'text' as const, text: `Error: ${e instanceof Error ? e.message : String(e)}` }] }; }
   }
 );

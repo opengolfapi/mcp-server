@@ -24,6 +24,19 @@ const calls = [...src.matchAll(/api(?:Get|Post)[^(]*\(\s*[`'"]([^`'"]+)/g)].map(
 const gated = calls.filter((p) => /\/(events|geo|ads|surface)\b|settle|players\/[^/]*\/stats/.test(p));   // compute(gross)/developer/awards/profile/beacon are OPEN
 if (gated.length) { console.error('gen-manifest: PUBLIC MCP calls GATED paths — paid/gated must NEVER be public:', gated.join(', '), '\nAborting.'); process.exit(1); }
 
+// TEXT footprint gate — the moat brand/recipe must NEVER appear in any shipped STRING (instructions, tool
+// descriptions, README). Catches prose leaks the call-path check can't (this is the class that shipped in a
+// stale copy: an instructions line naming the paid layer). "Remove entirely," not "soften."
+const FORBIDDEN = /opengolfgeo|golfagi\.com|plays[-\s]?like|strokes[-\s]?gained|\bpaid\b/i;
+const srcHit = src.match(FORBIDDEN);
+if (srcHit) { console.error(`gen-manifest: FOOTPRINT LEAK in src/index.ts ("${srcHit[0]}") — geo/paid must NEVER be public. Aborting.`); process.exit(1); }
+
+// VERSION single-source — the in-code handshake (PKG_VERSION) flows from package.json, so it can never drift
+// from the published version (the bug that let a stale copy report an old version).
+const idxPath = join(dir, 'src', 'index.ts');
+const idxSynced = src.replace(/const PKG_VERSION = '[^']*';/, `const PKG_VERSION = '${pkg.version}';`);
+if (idxSynced !== src) writeFileSync(idxPath, idxSynced);
+
 // 1) server.json — keep version in sync (the official MCP registry schema is strict: no `tools` field,
 //    camelCase only). Tools live in the README (below) + are introspected from the package at runtime.
 const sjPath = join(dir, 'server.json');

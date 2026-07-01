@@ -48,7 +48,7 @@ Get a free `OPENGOLFAPI_KEY` at https://courses.opengolfapi.org/api-keys. Read t
 ## Tools
 
 <!-- TOOLS:START (auto-generated from src by gen-manifest.mjs — do not edit by hand) -->
-_28 tools:_
+_41 tools:_
 
 - `search_courses` — Search golf courses by name, state, or location. Returns full course info. ODbL licensed data from OpenGolfAPI.
 - `get_course` — Get detailed golf course info including full scorecard with par and handicap index per hole. ODbL licensed.
@@ -77,6 +77,19 @@ _28 tools:_
 - `set_beacon` — Broadcast a player's consented, EXPIRING presence/availability beacon: mode=present (playing now) | available (looking for a game) | open (discoverable). Scoped (course/region), visibility-tiered, auto-expires. Powers find-my-group / matchmaking. Requires OPENGOLFAPI_KEY.
 - `find_beacons` — Discover ACTIVE public beacons (players broadcasting presence/availability) — for find-my-group / matchmaking. Filter by course_id, region, mode. Requires OPENGOLFAPI_KEY.
 - `record_consent` — Record a player's consent grant in the consent ledger (app→OpenGolf; the app is the controller). Body: player_id + scopes[] (e.g. corpus, share_scores, gps). Auditable + revocable. Requires OPENGOLFAPI_KEY.
+- `create_competition` — Create a Competition — a contest wrapper over OpenMatch (any format: stroke, scramble, CTP, long-drive, skins…). Free + gross. Returns the competition id used for attempts/finalize. Requires OPENGOLFAPI_KEY.
+- `list_competitions` — List Competitions (free). Filter by org, course, or status (open|closed|finalized).
+- `get_competition` — Get a Competition + its live gross standings (free; runs the format kernel on demand).
+- `record_attempt` — Record an Attempt in a Competition (a score for stroke formats, a side-game value for shot formats). Idempotent. Requires OPENGOLFAPI_KEY.
+- `finalize_competition` — Finalize a Competition — run the format kernel over its attempts and store the gross Result. Requires OPENGOLFAPI_KEY.
+- `list_orgs` — List Organizations — the public directory of verified orgs (courses, tours, clubs, sponsors) (free).
+- `mint_asset` — Mint an Asset — the generalized collectible/credential (trophy, badge, course-passport stamp, coupon, membership). Lands in the owner's trophy case + chain. Requires OPENGOLFAPI_KEY.
+- `file_claim` — File a Claim in the trust ledger (ownership, attestation, identity, record, correction). Lifecycle open→accepted→disputed→verified. Reads are free. Requires OPENGOLFAPI_KEY to file.
+- `list_claims` — List Claims from the trust ledger (free). Filter by claimant, subject, or status.
+- `post_beta` — Drop local course knowledge ("beta") on a hole — the AI-caddie's fuel (wind, green slope, hazards, the smart play). Raw contribution is free. Requires OPENGOLFAPI_KEY.
+- `get_beta` — Read raw local course knowledge ("beta") for a course/hole (free). The community's notes on how to play it.
+- `get_my_chain` — Export YOUR OpenGolf Chain — your verifiable, tamper-evident self-sovereign record (every round, shot, trophy) + its signed, Bitcoin-anchored checkpoints. Own-read is free. Requires OPENGOLFAPI_KEY.
+- `verify_chain` — Verify an OpenGolf Chain export (public tool, no key). Recomputes the hash links + (optionally) the checkpoint signature and Merkle root; reports any tampering and where.
 - `how_to_build` — The safe playbook for building on OpenGolfAPI and contributing data the right way. Call once before contributing.
 <!-- TOOLS:END -->
 

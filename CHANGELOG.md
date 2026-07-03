@@ -1,5 +1,11 @@
 # Changelog
 
+## 3.2.0 — 2026-07-03
+
+- **Agent-driven signup + viral loop instructions.** The server teaches connecting agents the full playbook: TWO PATHS (golfer OpenGolf ID / developer key — both mintable in-chat via request_sign_in_code → complete_sign_in → create_dev_key), referral attribution, invite-link + passport artifacts at signup, group invites (the foursome is the unit), share-the-wins, and hard taste rails (email code = consent; no contact scraping; guardian flow for juniors).
+- **`complete_sign_in` gains optional `ref`** — pass the inviter's player_id so agent-minted IDs credit referrals (previously dropped on the agent path).
+- **Compose-everything guidance** for high-capability models: worked combinations (tournament app, league night, coach analytics, trip planner, club concierge) — the tools are a language, not a menu.
+
 ## 2.2.2 — 2026-05-01
 
 - Optional Sentry error tracking via `@sentry/node`. Set `SENTRY_DSN` env var to forward tool exceptions to your own Sentry instance — no telemetry is collected from end users by default. See README's "Telemetry" section.

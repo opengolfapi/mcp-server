@@ -45,10 +45,16 @@ A great golf app is an afternoon, not a year.
 ```
 Get a free `OPENGOLFAPI_KEY` at https://courses.opengolfapi.org/api-keys. Read tools work with **no key**.
 
+> **Claude Desktop:** the config file is `claude_desktop_config.json` (Settings → Developer → Edit Config). **Claude Code:** `claude mcp add opengolfapi -- npx -y @opengolfapi/mcp-server`. **Going keyless?** Delete the whole `env` block — every read tool works without it (do NOT paste the placeholder as a key).
+
+**First prompt to try:** *"Find golf courses near Chicago and show me the hardest one."*
+
+**Which score tool when:** casual one-shot scoring → `score_round` · leagues/tournaments (scores arrive over time, standings matter) → `create_competition` → `record_attempt` → `finalize_competition` · streaming devices/live apps → `submit_moment`. Canonical domain model: https://api.opengolfapi.org/api/v1/model
+
 ## Tools
 
 <!-- TOOLS:START (auto-generated from src by gen-manifest.mjs — do not edit by hand) -->
-_49 tools:_
+_52 tools:_
 
 - `search_courses` — Search US golf courses by name, US state, or location (lat/lng + radius). Returns matching courses with location, type, par. Free, ODbL data.
 - `get_course` — Full detail for one course by id: scorecard (par + handicap per hole), tees, location, contact, nearby. Free.
@@ -91,6 +97,9 @@ _49 tools:_
 - `record_attempt` — Record an Attempt (score or side-game value). Idempotent. Requires key.
 - `finalize_competition` — Finalize — run the kernel, store the gross Result. Requires key.
 - `broadcast_feed` — OpenBroadcast P1 — ONE typed feed for a session: broadcast-worthy items (score/side_game/money/award/condition) in ascending (recorded_at, seq) order, each with template narration (headline<=60/ticker<=80). Money appears only via settled records. Replaces stitching moments+results+live_state. Requires key + session access (participant or compute).
+- `get_handicap` — OpenIndex (beta) — a player's estimated handicap computed from real, notarized rounds (every score stamped when it happened; verifiable by anyone). Not official — provable. Reading your OWN is free with your key; player_id must be the ogid_… form.
+- `list_webhooks` — List your active webhook subscriptions. Requires key.
+- `remove_webhook` — Deactivate one of your webhook subscriptions by id (audit row kept). Requires key.
 - `list_orgs` — Public directory of verified orgs (free).
 - `mint_asset` — Mint an Asset (trophy/badge/stamp/coupon/membership) into the owner's trophy case + chain. Requires key.
 - `file_claim` — File a Claim in the trust ledger (ownership/attestation/identity/record/correction). Requires key.

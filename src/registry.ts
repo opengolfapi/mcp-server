@@ -29,6 +29,12 @@ export const num = (d: string) => ({ type: 'number' as const, description: d });
 export function buildTools(ctx: HttpCtx): ToolDef[] {
   const { apiGet, apiPost, apiBase: API_BASE, rawFetch } = ctx;
   const fetch = rawFetch; // tools below reference fetch/API_BASE by these names
+  const apiDelete = async (path: string, key?: string): Promise<Json> => {
+    const r = await rawFetch(`${API_BASE}${path}`, { method: 'DELETE', headers: { Accept: 'application/json', ...(key ? { Authorization: `Bearer ${key}` } : {}) } });
+    const t = await r.text();
+    if (!r.ok) return { error: `${r.status}: ${t.slice(0, 300)}` };
+    return t ? JSON.parse(t) : {};
+  };
   const TOOLS: ToolDef[] = [
 
     {
@@ -338,6 +344,15 @@ export function buildTools(ctx: HttpCtx): ToolDef[] {
     { name: 'broadcast_feed', description: 'OpenBroadcast P1 — ONE typed feed for a session: broadcast-worthy items (score/side_game/money/award/condition) in ascending (recorded_at, seq) order, each with template narration (headline<=60/ticker<=80). Money appears only via settled records. Replaces stitching moments+results+live_state. Requires key + session access (participant or compute).',
       inputSchema: { type: 'object', required: ['session_id'], properties: { session_id: str('Session id'), since: str('ISO cursor — items after this recorded_at'), kinds: str('csv filter: score,side_game,money,award,condition,standing,system'), limit: num('max items (<=500)') } },
       run: async (a, key) => { if (!key) return NEED_KEY; const q = new URLSearchParams(); for (const k of ['since','kinds','limit']) if (a[k] != null) q.set(k, String(a[k])); return JSON.stringify(await apiGet(`/api/v1/sessions/${encodeURIComponent(a.session_id)}/feed${q.toString() ? `?${q}` : ''}`, key), null, 2); } },
+    { name: 'get_handicap', description: "OpenIndex (beta) — a player's estimated handicap computed from real, notarized rounds (every score stamped when it happened; verifiable by anyone). Not official — provable. Reading your OWN is free with your key; player_id must be the ogid_… form.",
+      inputSchema: { type: 'object', required: ['player_id'], properties: { player_id: str('OpenGolf ID (ogid_…)') } },
+      run: async (a, key) => { if (!key) return NEED_KEY; return JSON.stringify(await apiGet(`/api/v1/players/${encodeURIComponent(a.player_id)}/handicap`, key), null, 2); } },
+    { name: 'list_webhooks', description: 'List your active webhook subscriptions. Requires key.',
+      inputSchema: { type: 'object', properties: {} },
+      run: async (_a, key) => { if (!key) return NEED_KEY; return JSON.stringify(await apiGet('/api/v1/webhooks', key), null, 2); } },
+    { name: 'remove_webhook', description: 'Deactivate one of your webhook subscriptions by id (audit row kept). Requires key.',
+      inputSchema: { type: 'object', required: ['subscription_id'], properties: { subscription_id: str('Subscription id') } },
+      run: async (a, key) => { if (!key) return NEED_KEY; return JSON.stringify(await apiDelete(`/api/v1/webhooks/${encodeURIComponent(a.subscription_id)}`, key), null, 2); } },
     { name: 'list_orgs', description: 'Public directory of verified orgs (free).',
       inputSchema: { type: 'object', properties: { type: str('course|tour|club|sponsor') } },
       run: async (a) => { const q = a.type ? `?type=${encodeURIComponent(a.type)}` : ''; return JSON.stringify(await apiGet(`/api/v1/orgs${q}`), null, 2); } },

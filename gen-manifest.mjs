@@ -9,13 +9,15 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 const dir = dirname(fileURLToPath(import.meta.url));
-const src = readFileSync(join(dir, 'src', 'index.ts'), 'utf8');
+// SINGLE SOURCE = the registry MODULE, imported for real (the 3.3.0 lesson: regex-scraping index.ts
+// silently found 0 tools after the registry refactor and blocked the publish). Build runs first, so
+// dist/ exists; a registry that can't load or lists nothing still hard-fails the publish.
+const { buildTools } = await import(join(dir, 'dist', 'registry.js'));
+const tools = buildTools({ fetchJson: async () => ({}), key: null }).map((t) => ({ name: t.name, description: t.description }));
+const idxSrc = readFileSync(join(dir, 'src', 'index.ts'), 'utf8');
+const src = idxSrc + '\n' + readFileSync(join(dir, 'src', 'registry.ts'), 'utf8');   // scan text ONLY — never write this concat anywhere
 const pkg = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8'));
-
-// extract every server.tool('name', 'description', …)
-const tools = [...src.matchAll(/server\.tool\(\s*'([a-z_]+)',\s*'((?:[^'\\]|\\.)*)'/g)]
-  .map((m) => ({ name: m[1], description: m[2].replace(/\\'/g, "'") }));
-if (!tools.length) { console.error('gen-manifest: found 0 tools — aborting (regex drift?)'); process.exit(1); }
+if (!tools.length) { console.error('gen-manifest: registry listed 0 tools — aborting'); process.exit(1); }
 
 // CORE DISCIPLINE: nothing paid/gated/geo is ever public. Fail the build if the public MCP calls a gated
 // path. The OPEN standard includes GROSS scoring (/compute, free+keyless) + dev signup (/developer); the
@@ -34,8 +36,8 @@ if (srcHit) { console.error(`gen-manifest: FOOTPRINT LEAK in src/index.ts ("${sr
 // VERSION single-source — the in-code handshake (PKG_VERSION) flows from package.json, so it can never drift
 // from the published version (the bug that let a stale copy report an old version).
 const idxPath = join(dir, 'src', 'index.ts');
-const idxSynced = src.replace(/const PKG_VERSION = '[^']*';/, `const PKG_VERSION = '${pkg.version}';`);
-if (idxSynced !== src) writeFileSync(idxPath, idxSynced);
+const idxSynced = idxSrc.replace(/const PKG_VERSION = '[^']*';/, `const PKG_VERSION = '${pkg.version}';`);
+if (idxSynced !== idxSrc) writeFileSync(idxPath, idxSynced);   // write back INDEX ONLY (the 3.3.0 clobber lesson: version-sync once wrote the scan-concat and appended registry.ts into index.ts)
 
 // 1) server.json — keep version in sync (the official MCP registry schema is strict: no `tools` field,
 //    camelCase only). Tools live in the README (below) + are introspected from the package at runtime.

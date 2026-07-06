@@ -29,7 +29,9 @@ if (gated.length) { console.error('gen-manifest: PUBLIC MCP calls GATED paths �
 // TEXT footprint gate — the moat brand/recipe must NEVER appear in any shipped STRING (instructions, tool
 // descriptions, README). Catches prose leaks the call-path check can't (this is the class that shipped in a
 // stale copy: an instructions line naming the paid layer). "Remove entirely," not "soften."
-const FORBIDDEN = /opengolfgeo|golfagi\.com|plays[-\s]?like|strokes[-\s]?gained|\bpaid\b/i;
+// 'plays like' unbanned 2026-07-06: shipped as a FREE open kernel (Julian-approved, Shamble P0) — the
+// GEO version of the concept (per-feature precise elevation) remains gated server-side, not a phrase issue.
+const FORBIDDEN = /opengolfgeo|golfagi\.com|strokes[-\s]?gained|\bpaid\b/i;
 const srcHit = src.match(FORBIDDEN);
 if (srcHit) { console.error(`gen-manifest: FOOTPRINT LEAK in src/index.ts ("${srcHit[0]}") — geo/paid must NEVER be public. Aborting.`); process.exit(1); }
 

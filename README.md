@@ -54,7 +54,7 @@ Get a free `OPENGOLFAPI_KEY` at https://courses.opengolfapi.org/api-keys. Read t
 ## Tools
 
 <!-- TOOLS:START (auto-generated from src by gen-manifest.mjs — do not edit by hand) -->
-_52 tools:_
+_54 tools:_
 
 - `search_courses` — Search US golf courses by name, US state, or location (lat/lng + radius). Returns matching courses with location, type, par. Free, ODbL data.
 - `get_course` — Full detail for one course by id: scorecard (par + handicap per hole), tees, location, contact, nearby. Free.
@@ -83,6 +83,8 @@ _52 tools:_
 - `join_tournament` — Redeem an invite token — the player joins the group/event. Requires key.
 - `list_game_formats` — Every OpenMatch scoring format. GROSS scoring is free & keyless.
 - `score_round` — Score a round in any format — GROSS, FREE, no key. players:[{player_id,holes:{"1":4}}] or entries:[{player_id,hole,value}]; holes:[{hole,par,stroke_index?}].
+- `plays_like` — Effective distance — THE canonical "plays like" number (wind/elevation/temp/altitude), factors itemized. FREE, no key. Pair with get_conditions for live wind.
+- `get_conditions` — LIVE weather at a course (temp/wind/precip, forecast-model, 15-min cache). FREE. Feeds plays_like.
 - `link_dev_key` — Confirm your OpenGolf ID on an EXISTING key. Sign in first; pass that access_token + the key.
 - `list_dev_keys` — List the keys owned by your OpenGolf ID (prefixes only). Needs access_token from complete_sign_in.
 - `get_profile` — A player's public OpenGolf ID card — name, avatar, links, prefs. Free.

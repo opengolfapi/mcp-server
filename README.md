@@ -54,7 +54,7 @@ Get a free `OPENGOLFAPI_KEY` at https://courses.opengolfapi.org/api-keys. Read t
 ## Tools
 
 <!-- TOOLS:START (auto-generated from src by gen-manifest.mjs — do not edit by hand) -->
-_54 tools:_
+_56 tools:_
 
 - `search_courses` — Search US golf courses by name, US state, or location (lat/lng + radius). Returns matching courses with location, type, par. Free, ODbL data.
 - `get_course` — Full detail for one course by id: scorecard (par + handicap per hole), tees, location, contact, nearby. Free.
@@ -100,6 +100,8 @@ _54 tools:_
 - `finalize_competition` — Finalize — run the kernel, store the gross Result. Requires key.
 - `broadcast_feed` — OpenBroadcast P1 — ONE typed feed for a session: broadcast-worthy items (score/side_game/money/award/condition) in ascending (recorded_at, seq) order, each with template narration (headline<=60/ticker<=80). Money appears only via settled records. Replaces stitching moments+results+live_state. Requires key + session access (participant or compute).
 - `get_handicap` — OpenIndex (beta) — a player's estimated handicap computed from real, notarized rounds (every score stamped when it happened; verifiable by anyone). Not official — provable. Reading your OWN is free with your key; player_id must be the ogid_… form.
+- `get_showcase` — A player's public showcase — the collectibles/records on their OpenGolf ID (og.* namespaces + course.*). Free, keyless: pass their ogid_. Tombstoned (revoked/expired) records hidden. The provable trophy wall.
+- `verify_record` — Verify a record/collectible is authentic — returns the hash, whether it matches, and the CLIENT-RECOMPUTE recipe (sha256 of the canonical record) + the Bitcoin anchor. Free, keyless. Trust no one: recompute it yourself.
 - `list_webhooks` — List your active webhook subscriptions. Requires key.
 - `remove_webhook` — Deactivate one of your webhook subscriptions by id (audit row kept). Requires key.
 - `list_orgs` — Public directory of verified orgs (free).

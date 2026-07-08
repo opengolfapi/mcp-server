@@ -1,6 +1,6 @@
 {
   "name": "@opengolfapi/mcp-server",
-  "version": "3.3.4",
+  "version": "3.4.0",
   "description": "Golf for AI agents \u2014 every US course free, plus open contribution (OpenShot/Moments), portable identity & tournaments. The open data layer for golf.",
   "mcpName": "io.github.opengolfapi/mcp-server",
   "type": "module",

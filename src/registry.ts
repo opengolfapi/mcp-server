@@ -360,7 +360,7 @@ export function buildTools(ctx: HttpCtx): ToolDef[] {
     { name: 'get_showcase', description: "A player's public showcase — the collectibles/records on their OpenGolf ID (og.* namespaces + course.*). Free, keyless: pass their ogid_. Tombstoned (revoked/expired) records hidden. The provable trophy wall.",
       inputSchema: { type: 'object', required: ['subject'], properties: { subject: str('player OpenGolf ID (ogid_…)'), namespace: str('optional filter, e.g. og.collectibles/v1') } },
       run: async (a) => { const q = new URLSearchParams({ subject: String(a.subject) }); if (a.namespace) q.set('namespace', String(a.namespace)); return JSON.stringify(await apiGet(`/api/v1/registry/records?${q}`), null, 2); } },
-    { name: 'verify_record', description: "Verify a record/collectible is authentic — returns the hash, whether it matches, and the CLIENT-RECOMPUTE recipe (sha256 of the canonical record) + the Bitcoin anchor. Free, keyless. Trust no one: recompute it yourself.",
+    { name: 'verify_record', description: "Verify a record/collectible against the OpenGolf Chain (a signed, hash-linked, Bitcoin-anchored transparency log). Returns the hash + whether it matches + the CLIENT-RECOMPUTE recipe (sha256 of the canonical record) + the anchor. Then you can go further, all keyless: pull a merkle inclusion proof (GET /chain/anchors/:id/inclusion?hash=), verify the checkpoint's RS256 signature against /.well-known/jwks.json, and resolve the Bitcoin (OpenTimestamps) anchor. Free. Trust no one — recompute the hash, check inclusion, resolve Bitcoin yourself.",
       inputSchema: { type: 'object', required: ['record_id'], properties: { record_id: str('record UUID') } },
       run: async (a) => JSON.stringify(await apiGet(`/api/v1/registry/records/${encodeURIComponent(a.record_id)}/verify`), null, 2) },
     { name: 'list_webhooks', description: 'List your active webhook subscriptions. Requires key.',
@@ -390,7 +390,7 @@ export function buildTools(ctx: HttpCtx): ToolDef[] {
     { name: 'get_my_chain', description: 'Export YOUR tamper-evident OpenGolf Chain + checkpoints. Requires key (own-read free).',
       inputSchema: { type: 'object', properties: {} },
       run: async (_a, key) => { if (!key) return NEED_KEY; return JSON.stringify(await apiGet('/api/v1/me/chain', key), null, 2); } },
-    { name: 'verify_chain', description: 'Verify a Chain export (public, no key) — recomputes links + checkpoint; reports tampering and where.',
+    { name: 'verify_chain', description: 'Verify a Chain export OR walk the public transparency log (GET /chain/log?subject=), public + keyless — recompute the hash-links, verify each RS256 checkpoint signature against the JWKS, and resolve the Bitcoin anchors; reports tampering and where. The whole history (registry, per-course, master) is independently auditable — trust no one.',
       inputSchema: { type: 'object', required: ['export'], properties: { export: { type: 'object', description: 'export from get_my_chain' } } },
       run: async (a) => JSON.stringify(await apiPost('/api/v1/me/chain/verify', a.export), null, 2) },
 

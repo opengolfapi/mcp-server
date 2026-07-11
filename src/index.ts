@@ -15,7 +15,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { ListToolsRequestSchema, CallToolRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { buildTools, SERVER_INSTRUCTIONS, type Json } from './registry.js';
 
-const PKG_VERSION = '3.5.0';
+const PKG_VERSION = '3.5.1';
 const API_BASE = process.env.OPENGOLFAPI_BASE ?? 'https://api.opengolfapi.org';
 const OPENGOLFAPI_KEY = process.env.OPENGOLFAPI_KEY;
 const userAgent = `opengolfapi-mcp-server/${PKG_VERSION}`;

@@ -101,7 +101,7 @@ _56 tools:_
 - `broadcast_feed` — OpenBroadcast P1 — ONE typed feed for a session: broadcast-worthy items (score/side_game/money/award/condition) in ascending (recorded_at, seq) order, each with template narration (headline<=60/ticker<=80). Money appears only via settled records. Replaces stitching moments+results+live_state. Requires key + session access (participant or compute).
 - `get_handicap` — OpenIndex (beta) — a player's estimated handicap computed from real, notarized rounds (every score stamped when it happened; verifiable by anyone). Not official — provable. Reading your OWN is free with your key; player_id must be the ogid_… form.
 - `get_showcase` — A player's public showcase — the collectibles/records on their OpenGolf ID (og.* namespaces + course.*). Free, keyless: pass their ogid_. Tombstoned (revoked/expired) records hidden. The provable trophy wall.
-- `verify_record` — Verify a record/collectible is authentic — returns the hash, whether it matches, and the CLIENT-RECOMPUTE recipe (sha256 of the canonical record) + the Bitcoin anchor. Free, keyless. Trust no one: recompute it yourself.
+- `verify_record` — Verify a record/collectible against the OpenGolf Chain (a signed, hash-linked, Bitcoin-anchored transparency log). Returns the hash + whether it matches + the CLIENT-RECOMPUTE recipe (sha256 of the canonical record) + the anchor. Then you can go further, all keyless: pull a merkle inclusion proof (GET /chain/anchors/:id/inclusion?hash=), verify the checkpoint's RS256 signature against /.well-known/jwks.json, and resolve the Bitcoin (OpenTimestamps) anchor. Free. Trust no one — recompute the hash, check inclusion, resolve Bitcoin yourself.
 - `list_webhooks` — List your active webhook subscriptions. Requires key.
 - `remove_webhook` — Deactivate one of your webhook subscriptions by id (audit row kept). Requires key.
 - `list_orgs` — Public directory of verified orgs (free).
@@ -111,7 +111,7 @@ _56 tools:_
 - `post_beta` — Drop local course knowledge ("beta") on a hole — the AI-caddie's fuel. Requires key.
 - `get_beta` — Read local course knowledge for a course/hole (free).
 - `get_my_chain` — Export YOUR tamper-evident OpenGolf Chain + checkpoints. Requires key (own-read free).
-- `verify_chain` — Verify a Chain export (public, no key) — recomputes links + checkpoint; reports tampering and where.
+- `verify_chain` — Verify a Chain export OR walk the public transparency log (GET /chain/log?subject=), public + keyless — recompute the hash-links, verify each RS256 checkpoint signature against the JWKS, and resolve the Bitcoin anchors; reports tampering and where. The whole history (registry, per-course, master) is independently auditable — trust no one.
 <!-- TOOLS:END -->
 
 ## The bigger ecosystem — two front doors
